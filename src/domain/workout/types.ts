@@ -74,13 +74,29 @@ export type WorkoutEvent =
       timerId: string;
       expectedRevision: number;
       at: number;
-    };
+    }
+  | {
+      type: "adjust_rest";
+      timerId: string;
+      expectedRevision: number;
+      deltaSeconds: -15 | 15;
+      at: number;
+    }
+  | {
+      type: "skip_rest";
+      timerId: string;
+      expectedRevision: number;
+      at: number;
+    }
+  | { type: "activate_next_set"; expectedPosition: WorkoutPosition };
 
 export type WorkoutFact =
   | { type: "WORKOUT_STARTED" }
   | { type: "SET_COMPLETED"; performedSetId: string }
   | { type: "REST_STARTED"; timer: RestTimer }
+  | { type: "REST_RESCHEDULED"; timer: RestTimer }
   | { type: "REST_FINISHED"; timerId: string }
+  | { type: "REST_SKIPPED"; timerId: string }
   | { type: "WORKOUT_COMPLETED" };
 
 export type WorkoutTransition =

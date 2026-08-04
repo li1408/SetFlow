@@ -114,8 +114,26 @@ export function transitionWorkout(
     };
   }
 
+  if (event.type === "activate_next_set") {
+    if (
+      state.phase.kind !== "next_set_ready" ||
+      !samePosition(state.phase.position, event.expectedPosition)
+    ) {
+      return rejected(state, "INVALID_TRANSITION");
+    }
+
+    return {
+      kind: "changed",
+      state: {
+        ...state,
+        phase: { kind: "active_set", position: state.phase.position },
+      },
+      facts: [],
+    };
+  }
+
   if (state.phase.kind !== "resting") {
-    return rejected(state, "INVALID_TRANSITION");
+    return { kind: "noop", state, reason: "STALE_TIMER" };
   }
   if (state.phase.timer.id !== event.timerId) {
     return { kind: "noop", state, reason: "STALE_TIMER" };
@@ -123,21 +141,54 @@ export function transitionWorkout(
   if (state.phase.timer.revision !== event.expectedRevision) {
     return { kind: "noop", state, reason: "STALE_REVISION" };
   }
+
+  if (event.type === "adjust_rest") {
+    if (event.at >= state.phase.timer.endsAt) {
+      return finishRest(state);
+    }
+
+    const endsAt = state.phase.timer.endsAt + event.deltaSeconds * 1_000;
+    if (endsAt <= event.at) {
+      return finishRest(state);
+    }
+
+    const timer = {
+      ...state.phase.timer,
+      revision: state.phase.timer.revision + 1,
+      endsAt,
+      totalAdjustmentSeconds:
+        state.phase.timer.totalAdjustmentSeconds + event.deltaSeconds,
+    };
+
+    return {
+      kind: "changed",
+      state: {
+        ...state,
+        phase: { ...state.phase, timer },
+      },
+      facts: [{ type: "REST_RESCHEDULED", timer }],
+    };
+  }
+
+  if (event.type === "skip_rest") {
+    return {
+      kind: "changed",
+      state: {
+        ...state,
+        phase: {
+          kind: "next_set_ready",
+          position: state.phase.nextPosition,
+        },
+      },
+      facts: [{ type: "REST_SKIPPED", timerId: state.phase.timer.id }],
+    };
+  }
+
   if (event.at < state.phase.timer.endsAt) {
     return { kind: "noop", state, reason: "REST_NOT_DUE" };
   }
 
-  return {
-    kind: "changed",
-    state: {
-      ...state,
-      phase: {
-        kind: "next_set_ready",
-        position: state.phase.nextPosition,
-      },
-    },
-    facts: [{ type: "REST_FINISHED", timerId: state.phase.timer.id }],
-  };
+  return finishRest(state);
 }
 
 function getNextPosition(
@@ -162,6 +213,24 @@ function samePosition(left: WorkoutPosition, right: WorkoutPosition): boolean {
   return (
     left.exerciseIndex === right.exerciseIndex && left.setIndex === right.setIndex
   );
+}
+
+function finishRest(state: WorkoutSession): WorkoutTransition {
+  if (state.phase.kind !== "resting") {
+    return { kind: "noop", state, reason: "STALE_TIMER" };
+  }
+
+  return {
+    kind: "changed",
+    state: {
+      ...state,
+      phase: {
+        kind: "next_set_ready",
+        position: state.phase.nextPosition,
+      },
+    },
+    facts: [{ type: "REST_FINISHED", timerId: state.phase.timer.id }],
+  };
 }
 
 function rejected(

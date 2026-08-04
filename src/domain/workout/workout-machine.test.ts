@@ -107,6 +107,110 @@ describe("workout state machine", () => {
       },
       facts: [{ type: "REST_FINISHED", timerId: "rest-1" }],
     });
+    if (elapsed.kind === "changed") {
+      expect(
+        transitionWorkout(elapsed.state, {
+          type: "rest_elapsed",
+          timerId: "rest-1",
+          expectedRevision: 0,
+          at: 62_001,
+        }),
+      ).toMatchObject({ kind: "noop", reason: "STALE_TIMER" });
+    }
+  });
+
+  it("reschedules rest from the current revision and rejects stale repeats", () => {
+    const resting = createRestingSession();
+    const adjusted = transitionWorkout(resting, {
+      type: "adjust_rest",
+      timerId: "rest-1",
+      expectedRevision: 0,
+      deltaSeconds: 15,
+      at: 10_000,
+    });
+
+    expect(adjusted).toMatchObject({
+      kind: "changed",
+      state: {
+        phase: {
+          kind: "resting",
+          timer: {
+            revision: 1,
+            endsAt: 77_000,
+            totalAdjustmentSeconds: 15,
+          },
+        },
+      },
+      facts: [{ type: "REST_RESCHEDULED" }],
+    });
+    if (adjusted.kind === "changed") {
+      expect(
+        transitionWorkout(adjusted.state, {
+          type: "adjust_rest",
+          timerId: "rest-1",
+          expectedRevision: 0,
+          deltaSeconds: 15,
+          at: 10_100,
+        }),
+      ).toMatchObject({ kind: "noop", reason: "STALE_REVISION" });
+    }
+  });
+
+  it("finishes rest immediately when subtracting past the remaining time", () => {
+    const result = transitionWorkout(createRestingSession(), {
+      type: "adjust_rest",
+      timerId: "rest-1",
+      expectedRevision: 0,
+      deltaSeconds: -15,
+      at: 50_000,
+    });
+
+    expect(result).toMatchObject({
+      kind: "changed",
+      state: {
+        phase: {
+          kind: "next_set_ready",
+          position: { exerciseIndex: 0, setIndex: 1 },
+        },
+      },
+      facts: [{ type: "REST_FINISHED", timerId: "rest-1" }],
+    });
+  });
+
+  it("skips rest and explicitly activates the next set", () => {
+    const skipped = transitionWorkout(createRestingSession(), {
+      type: "skip_rest",
+      timerId: "rest-1",
+      expectedRevision: 0,
+      at: 20_000,
+    });
+
+    expect(skipped).toMatchObject({
+      kind: "changed",
+      state: {
+        phase: {
+          kind: "next_set_ready",
+          position: { exerciseIndex: 0, setIndex: 1 },
+        },
+      },
+      facts: [{ type: "REST_SKIPPED", timerId: "rest-1" }],
+    });
+    if (skipped.kind !== "changed") throw new Error("rest was not skipped");
+
+    const activated = transitionWorkout(skipped.state, {
+      type: "activate_next_set",
+      expectedPosition: { exerciseIndex: 0, setIndex: 1 },
+    });
+    expect(activated).toMatchObject({
+      kind: "changed",
+      state: {
+        phase: {
+          kind: "active_set",
+          position: { exerciseIndex: 0, setIndex: 1 },
+        },
+      },
+      facts: [],
+    });
   });
 
   it("completes the workout without starting rest after the final set", () => {
