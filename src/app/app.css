@@ -1,0 +1,332 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --color-canvas: #11130f;
+  --color-surface: #191c17;
+  --color-surface-raised: #20241d;
+  --color-text: #f3f5ec;
+  --color-muted: #9ba394;
+  --color-border: #343a30;
+  --color-accent: #c8ff3d;
+  --color-accent-ink: #15190e;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 20rem;
+  min-height: 100%;
+  background: var(--color-canvas);
+}
+
+body {
+  min-width: 20rem;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    var(--color-canvas);
+  background-size: 2rem 2rem;
+  color: var(--color-text);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  transform: translateY(-180%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.app {
+  display: flex;
+  width: min(100%, 31rem);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding:
+    max(var(--space-5), env(safe-area-inset-top))
+    max(var(--space-5), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom))
+    max(var(--space-5), env(safe-area-inset-left));
+  flex-direction: column;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-mark {
+  display: grid;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 42%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+}
+
+.brand-name,
+.brand-caption,
+.eyebrow,
+.hero-copy,
+.status-label,
+.readiness-copy p,
+.privacy-note,
+.build-note {
+  margin: 0;
+}
+
+.brand-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.brand-caption {
+  margin-top: 0.1rem;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+}
+
+.local-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: clamp(2.5rem, 10vh, 6rem) var(--space-8);
+}
+
+.hero {
+  max-width: 27rem;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hero-title {
+  max-width: 8ch;
+  margin: var(--space-4) 0 var(--space-4);
+  font-size: clamp(2.8rem, 13vw, 4.6rem);
+  font-weight: 820;
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+}
+
+.hero-copy {
+  max-width: 34rem;
+  color: var(--color-muted);
+  font-size: 0.96rem;
+  line-height: 1.7;
+}
+
+.readiness {
+  display: grid;
+  margin-top: clamp(2rem, 7vh, 4rem);
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: var(--space-5);
+  border-block: 1px solid var(--color-border);
+}
+
+.orbit {
+  display: grid;
+  width: 5.25rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 55%, transparent);
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+
+.orbit-inner {
+  display: grid;
+  width: 4.1rem;
+  aspect-ratio: 1;
+  place-content: center;
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  text-align: center;
+}
+
+.orbit-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.orbit-label {
+  margin-top: 0.3rem;
+  color: var(--color-muted);
+  font-size: 0.65rem;
+}
+
+.status-label {
+  color: var(--color-accent);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.readiness-copy h2 {
+  margin: 0.35rem 0;
+  font-size: 1rem;
+}
+
+.readiness-copy p:last-child {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.primary-action {
+  display: flex;
+  width: 100%;
+  min-height: 3.75rem;
+  margin-top: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  cursor: pointer;
+  font-weight: 800;
+  transition: filter 160ms ease;
+  will-change: transform, opacity;
+}
+
+.primary-action:hover {
+  filter: brightness(1.06);
+}
+
+.primary-action:active {
+  transform: translateY(1px);
+}
+
+.privacy-note {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.build-note {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: color-mix(in srgb, var(--color-muted) 74%, transparent);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+.js-brand,
+.js-reveal {
+  will-change: transform, opacity;
+}
+
+@media (max-width: 22rem) {
+  .app {
+    padding-inline: var(--space-4);
+  }
+
+  .local-badge span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .hero-title {
+    font-size: 2.75rem;
+  }
+}
+
+@media (max-height: 43.75rem) {
+  .main {
+    justify-content: flex-start;
+    padding-block: var(--space-8) var(--space-6);
+  }
+
+  .readiness {
+    margin-top: var(--space-8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
