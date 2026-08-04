@@ -74,6 +74,50 @@ function createEditableExercise(
   };
 }
 
+function createInitialExercises(
+  initialPlan: ManualPlanDraft | undefined,
+): EditableExercise[] {
+  const plannedExercises = initialPlan?.days[0]?.exercises;
+  if (!plannedExercises?.length) {
+    return [createEditableExercise(defaultExercise)];
+  }
+
+  const editableExercises = [...plannedExercises]
+    .sort((left, right) => left.order - right.order)
+    .flatMap((plannedExercise) => {
+      const definition = builtInExerciseCatalog.find(
+        (exercise) => exercise.id === plannedExercise.exerciseId,
+      );
+      if (!definition) return [];
+
+      const target: EditableTarget =
+        plannedExercise.target.kind === "reps"
+          ? {
+              kind: "reps",
+              min: String(plannedExercise.target.min),
+              max: String(plannedExercise.target.max),
+              basis: plannedExercise.target.basis,
+            }
+          : {
+              kind: "durationSeconds",
+              seconds: String(plannedExercise.target.seconds),
+              basis: plannedExercise.target.basis,
+            };
+      return [
+        {
+          exerciseId: definition.id,
+          sets: String(plannedExercise.sets),
+          restSeconds: String(plannedExercise.restSeconds),
+          target,
+        },
+      ];
+    });
+
+  return editableExercises.length > 0
+    ? editableExercises
+    : [createEditableExercise(defaultExercise)];
+}
+
 function equipmentRequirement(exercise: ExerciseDefinition): string {
   if (exercise.requiredEquipment.length === 0) return "无需器械";
   return `需要：${exercise.requiredEquipment
@@ -86,21 +130,25 @@ function toNumber(value: string): number {
 }
 
 export interface ManualPlanFormProps {
+  initialPlan?: ManualPlanDraft;
   isSubmitting?: boolean;
   onPlanCreated: (plan: ManualPlanDraft) => void;
 }
 
 export function ManualPlanForm({
+  initialPlan,
   isSubmitting = false,
   onPlanCreated,
 }: ManualPlanFormProps) {
   const titleId = useId();
   const catalogHelpId = useId();
   const errorId = useId();
-  const [dayName, setDayName] = useState("居家全身训练");
+  const [dayName, setDayName] = useState(
+    () => initialPlan?.days[0]?.name ?? "居家全身训练",
+  );
   const [selectedExercises, setSelectedExercises] = useState<
     EditableExercise[]
-  >(() => [createEditableExercise(defaultExercise)]);
+  >(() => createInitialExercises(initialPlan));
   const [error, setError] = useState<string | null>(null);
 
   function setExerciseSelected(exercise: ExerciseDefinition, checked: boolean) {

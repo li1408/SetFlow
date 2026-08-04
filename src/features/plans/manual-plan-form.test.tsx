@@ -107,4 +107,55 @@ describe("ManualPlanForm", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("至少选择一个动作");
     expect(onPlanCreated).not.toHaveBeenCalled();
   });
+
+  it("prefills an existing manual plan for editing", () => {
+    render(
+      <ManualPlanForm
+        initialPlan={{
+          source: { kind: "manual" },
+          days: [
+            {
+              ordinal: 1,
+              name: "小米 15 徒手训练",
+              exercises: [
+                {
+                  exerciseId: "bodyweight-squat",
+                  order: 0,
+                  sets: 4,
+                  target: {
+                    kind: "reps",
+                    min: 10,
+                    max: 14,
+                    basis: "total",
+                  },
+                  restSeconds: 75,
+                },
+                {
+                  exerciseId: "forearm-plank",
+                  order: 1,
+                  sets: 3,
+                  target: {
+                    kind: "durationSeconds",
+                    seconds: 45,
+                    basis: "total",
+                  },
+                  restSeconds: 45,
+                },
+              ],
+            },
+          ],
+        }}
+        onPlanCreated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("训练日名称")).toHaveValue("小米 15 徒手训练");
+    const squatEditor = screen.getByRole("group", { name: "徒手深蹲设置" });
+    expect(within(squatEditor).getByLabelText("组数")).toHaveValue(4);
+    expect(within(squatEditor).getByLabelText("最少次数")).toHaveValue(10);
+    const plankEditor = screen.getByRole("group", { name: "前臂平板支撑设置" });
+    expect(within(plankEditor).getByLabelText("每组时长（秒）")).toHaveValue(
+      45,
+    );
+  });
 });

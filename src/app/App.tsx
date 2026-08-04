@@ -15,6 +15,7 @@ import type { StoredPlan } from "../data/types";
 import { builtInExerciseCatalog } from "../domain/exercises/built-in-catalog";
 import type {
   GeneratedPlanDraft,
+  ManualPlanDraft,
   PlanDraft,
   PlannedTarget,
 } from "../domain/planning/types";
@@ -289,6 +290,7 @@ export function App({ services = defaultAppServices }: AppProps) {
             {screen === "plan-builder" ? (
               <PlanBuilderScreen
                 draft={planDraft}
+                existingDraft={activePlan?.draft ?? null}
                 initialMode={activePlan?.draft.source.kind ?? "generated"}
                 isBusy={isBusy}
                 onBack={() => setScreen(activePlan ? "today" : "home")}
@@ -387,6 +389,7 @@ function LandingScreen({ onCreate }: { onCreate: () => void }) {
 
 function PlanBuilderScreen({
   draft,
+  existingDraft,
   initialMode,
   isBusy,
   onBack,
@@ -395,6 +398,7 @@ function PlanBuilderScreen({
   onSave,
 }: {
   draft: PlanDraft | null;
+  existingDraft: PlanDraft | null;
   initialMode: PlanDraft["source"]["kind"];
   isBusy: boolean;
   onBack: () => void;
@@ -451,6 +455,9 @@ function PlanBuilderScreen({
           role="tabpanel"
         >
           <ManualPlanForm
+            initialPlan={
+              isManualPlanDraft(existingDraft) ? existingDraft : undefined
+            }
             isSubmitting={isBusy}
             onPlanCreated={onManualCreated}
           />
@@ -472,6 +479,12 @@ function PlanBuilderScreen({
       ) : null}
     </div>
   );
+}
+
+function isManualPlanDraft(
+  draft: PlanDraft | null,
+): draft is ManualPlanDraft {
+  return draft?.source.kind === "manual";
 }
 
 function TodayScreen({
