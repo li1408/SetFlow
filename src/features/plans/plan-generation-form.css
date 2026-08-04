@@ -1,0 +1,125 @@
+.plan-generation-form,
+.plan-generation-form__form,
+.plan-preview,
+.plan-preview__days,
+.plan-preview__exercises {
+  display: grid;
+  gap: var(--space-4, 1rem);
+}
+
+.plan-generation-form__header > *,
+.plan-generation-form__equipment > p,
+.plan-preview__header > *,
+.plan-preview__day > h4 {
+  margin: 0;
+}
+
+.plan-generation-form__header > p:last-child,
+.plan-generation-form__equipment > p,
+.plan-preview__header > p,
+.plan-preview__exercises span {
+  color: var(--color-muted, #667063);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.plan-generation-form__eyebrow {
+  color: var(--color-accent, #5d7c00);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.plan-generation-form__field {
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.plan-generation-form__field input,
+.plan-generation-form__field select {
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, currentColor);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--color-surface, Canvas);
+  color: inherit;
+  font: inherit;
+}
+
+.plan-generation-form__equipment {
+  margin: 0;
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border, currentColor);
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.plan-generation-form__equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2, 0.5rem);
+  margin-top: var(--space-3, 0.75rem);
+}
+
+.plan-generation-form__equipment-grid label {
+  display: flex;
+  min-block-size: 2.75rem;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  cursor: pointer;
+}
+
+.plan-generation-form__equipment-grid input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+}
+
+.plan-generation-form__error {
+  margin: 0;
+  color: #ffb4ab;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.plan-generation-form__submit {
+  min-block-size: 3.5rem;
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  border: 0;
+  border-radius: var(--radius-md, 0.875rem);
+  background: var(--color-accent, #c8ff3d);
+  color: var(--color-accent-ink, #15190e);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.plan-preview {
+  padding-top: var(--space-4, 1rem);
+  border-top: 1px solid var(--color-border, currentColor);
+}
+
+.plan-preview__days,
+.plan-preview__exercises {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-preview__day {
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border, currentColor);
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.plan-preview__exercises {
+  gap: var(--space-3, 0.75rem);
+  margin-top: var(--space-3, 0.75rem);
+}
+
+.plan-preview__exercises li {
+  display: grid;
+  gap: var(--space-1, 0.25rem);
+}
