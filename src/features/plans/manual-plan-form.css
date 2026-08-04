@@ -1,0 +1,200 @@
+.manual-plan-form,
+.manual-plan-form__form,
+.manual-plan-form__selected {
+  display: grid;
+  gap: var(--space-5, 1.25rem);
+}
+
+.manual-plan-form__header > *,
+.manual-plan-form__catalog > p,
+.manual-plan-form__selected-heading > *,
+.manual-plan-form__empty {
+  margin: 0;
+}
+
+.manual-plan-form__header {
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+}
+
+.manual-plan-form__header > p:last-child,
+.manual-plan-form__catalog > p,
+.manual-plan-form__empty {
+  color: var(--color-muted, #9ba394);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.manual-plan-form__eyebrow {
+  color: var(--color-accent, #c8ff3d);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.manual-plan-form__field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2, 0.5rem);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.manual-plan-form__field input {
+  width: 100%;
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--color-surface, #191c17);
+  color: inherit;
+  font: inherit;
+}
+
+.manual-plan-form__day-name input {
+  min-block-size: 3.5rem;
+  font-size: 1rem;
+}
+
+.manual-plan-form__catalog,
+.manual-plan-form__exercise {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-md, 0.875rem);
+}
+
+.manual-plan-form__catalog {
+  padding: var(--space-4, 1rem);
+}
+
+.manual-plan-form__catalog legend,
+.manual-plan-form__exercise legend {
+  padding-inline: var(--space-2, 0.5rem);
+  font-weight: 800;
+}
+
+.manual-plan-form__catalog-list {
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+  margin-top: var(--space-3, 0.75rem);
+}
+
+.manual-plan-form__catalog-list label {
+  display: grid;
+  min-block-size: 3.5rem;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  grid-template-columns: 1.25rem 1fr;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 0.5rem);
+  cursor: pointer;
+}
+
+.manual-plan-form__catalog-list label:has(input:checked) {
+  border-color: color-mix(in srgb, var(--color-accent, #c8ff3d) 42%, transparent);
+  background: color-mix(in srgb, var(--color-accent, #c8ff3d) 8%, transparent);
+}
+
+.manual-plan-form__catalog-list input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--color-accent, #c8ff3d);
+}
+
+.manual-plan-form__catalog-list span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.manual-plan-form__catalog-list strong {
+  font-size: 0.875rem;
+}
+
+.manual-plan-form__catalog-list small,
+.manual-plan-form__exercise-head > span,
+.manual-plan-form__selected-heading > span {
+  color: var(--color-muted, #9ba394);
+  font-size: 0.72rem;
+}
+
+.manual-plan-form__selected-heading,
+.manual-plan-form__exercise-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+}
+
+.manual-plan-form__exercise {
+  padding: var(--space-4, 1rem);
+  background: var(--color-surface, #191c17);
+}
+
+.manual-plan-form__exercise-head {
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.manual-plan-form__exercise-head button {
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--color-muted, #9ba394);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+
+.manual-plan-form__input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3, 0.75rem);
+}
+
+.manual-plan-form__empty {
+  padding: var(--space-5, 1.25rem);
+  border: 1px dashed var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  text-align: center;
+}
+
+.manual-plan-form__error {
+  margin: 0;
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  border: 1px solid color-mix(in srgb, #ffb4ab 45%, transparent);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, #ffb4ab 8%, transparent);
+  color: #ffd9d5;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.manual-plan-form__submit {
+  min-block-size: 3.5rem;
+  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  border: 0;
+  border-radius: var(--radius-md, 0.875rem);
+  background: var(--color-accent, #c8ff3d);
+  color: var(--color-accent-ink, #15190e);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+@media (min-width: 28rem) {
+  .manual-plan-form__catalog-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 21rem) {
+  .manual-plan-form__input-grid {
+    grid-template-columns: 1fr;
+  }
+}
