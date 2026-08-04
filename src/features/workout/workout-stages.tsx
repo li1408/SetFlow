@@ -238,9 +238,14 @@ export function NextSetReadyStage({
 
 interface CompletedStageProps extends StageHeadingProps {
   session: WorkoutSession;
+  onFinish?: () => void;
 }
 
-export function CompletedStage({ session, headingRef }: CompletedStageProps) {
+export function CompletedStage({
+  session,
+  headingRef,
+  onFinish,
+}: CompletedStageProps) {
   const completedAt =
     session.phase.kind === "completed"
       ? session.phase.completedAt
@@ -274,6 +279,16 @@ export function CompletedStage({ session, headingRef }: CompletedStageProps) {
           <dd>{formatClock(elapsed)}</dd>
         </div>
       </dl>
+
+      {onFinish ? (
+        <button
+          className="workout-primary-action"
+          type="button"
+          onClick={onFinish}
+        >
+          回到今日计划
+        </button>
+      ) : null}
     </div>
   );
 }

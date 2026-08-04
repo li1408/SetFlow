@@ -30,13 +30,11 @@
 }
 
 html {
-  min-width: 20rem;
   min-height: 100%;
   background: var(--color-canvas);
 }
 
 body {
-  min-width: 20rem;
   min-height: 100vh;
   margin: 0;
   background:
@@ -57,7 +55,9 @@ button {
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
   outline: 0.1875rem solid var(--color-accent);
   outline-offset: 0.1875rem;
 }
@@ -198,7 +198,6 @@ a:focus-visible {
   place-items: center;
   border: 1px dashed color-mix(in srgb, var(--color-accent) 55%, transparent);
   border-radius: 50%;
-  will-change: transform, opacity;
 }
 
 .orbit-inner {
@@ -257,7 +256,11 @@ a:focus-visible {
   cursor: pointer;
   font-weight: 800;
   transition: filter 160ms ease;
-  will-change: transform, opacity;
+}
+
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .primary-action:hover {
@@ -284,9 +287,121 @@ a:focus-visible {
   letter-spacing: 0.05em;
 }
 
-.js-brand,
-.js-reveal {
-  will-change: transform, opacity;
+.app-workout-host {
+  min-height: 100svh;
+}
+
+.main--flow {
+  justify-content: flex-start;
+  padding-block: var(--space-8);
+}
+
+.flow-screen,
+.today-screen {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.text-action {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.75rem;
+  padding: 0;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.text-action--center {
+  margin-inline: auto;
+}
+
+.sticky-action {
+  position: sticky;
+  z-index: 2;
+  bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  padding-top: var(--space-2);
+  background: linear-gradient(transparent, var(--color-canvas) 28%);
+}
+
+.app-error {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, #ffb4ab 48%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #ffb4ab 8%, transparent);
+  color: #ffd9d5;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.today-heading h1 {
+  margin: var(--space-3) 0;
+  font-size: clamp(2.5rem, 12vw, 4.25rem);
+  letter-spacing: -0.065em;
+  line-height: 0.98;
+}
+
+.today-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.today-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.today-exercises {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.today-exercises li {
+  display: grid;
+  min-height: 5.25rem;
+  padding-block: var(--space-4);
+  grid-template-columns: 2.25rem 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.today-exercises li:last-child {
+  border-bottom: 0;
+}
+
+.exercise-number {
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.today-exercises strong {
+  font-size: 1rem;
+}
+
+.today-exercises p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.today-actions {
+  display: grid;
 }
 
 @media (max-width: 22rem) {

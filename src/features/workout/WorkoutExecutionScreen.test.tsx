@@ -184,12 +184,21 @@ describe("WorkoutExecutionScreen", () => {
       makePerformedSet("set-2", 1),
     ];
 
-    render(<WorkoutExecutionScreen session={session} onEvent={vi.fn()} />);
+    const onFinish = vi.fn();
+    render(
+      <WorkoutExecutionScreen
+        session={session}
+        onEvent={vi.fn()}
+        onFinish={onFinish}
+      />,
+    );
 
     expect(screen.getByRole("heading", { name: "训练完成" })).toBeInTheDocument();
     expect(screen.getByText("2 组")).toBeInTheDocument();
     expect(screen.getByText("1 个动作")).toBeInTheDocument();
     expect(screen.getByText("03:00")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "回到今日计划" }));
+    expect(onFinish).toHaveBeenCalledTimes(1);
   });
 });
 

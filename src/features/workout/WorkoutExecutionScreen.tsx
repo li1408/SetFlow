@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import type {
@@ -22,11 +29,13 @@ export interface WorkoutExecutionScreenProps {
   onEvent: (
     event: WorkoutEvent,
   ) => Promise<WorkoutTransition> | WorkoutTransition;
+  onFinish?: () => void;
 }
 
 export function WorkoutExecutionScreen({
   session,
   onEvent,
+  onFinish,
 }: WorkoutExecutionScreenProps) {
   const rootRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -73,11 +82,18 @@ export function WorkoutExecutionScreen({
     headingRef.current?.focus({ preventScroll: true });
   }, [viewKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!restTimerId) return;
 
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setNow(Date.now());
+    });
     const intervalId = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(intervalId);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [restTimerEndsAt, restTimerId, restTimerRevision]);
 
   const remainingMilliseconds =
@@ -237,11 +253,17 @@ export function WorkoutExecutionScreen({
     }
 
     if (session.phase.kind === "completed") {
-      return <CompletedStage headingRef={headingRef} session={session} />;
+      return (
+        <CompletedStage
+          headingRef={headingRef}
+          session={session}
+          onFinish={onFinish}
+        />
+      );
     }
 
     return <InvalidStage headingRef={headingRef} isIdle />;
-  }, [dispatch, isPending, remainingMilliseconds, session, viewKey]);
+  }, [dispatch, isPending, onFinish, remainingMilliseconds, session, viewKey]);
 
   return (
     <section
