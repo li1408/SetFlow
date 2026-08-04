@@ -14,6 +14,7 @@ import type { StoredPlan } from "../data/types";
 import { builtInExerciseCatalog } from "../domain/exercises/built-in-catalog";
 import type {
   GeneratedPlanDraft,
+  PlanDraft,
   PlannedTarget,
 } from "../domain/planning/types";
 import { createWorkoutSession } from "../domain/workout/workout-machine";
@@ -24,6 +25,7 @@ import type {
   WorkoutTransition,
 } from "../domain/workout/types";
 import { PlanGenerationForm } from "../features/plans/plan-generation-form";
+import { ManualPlanForm } from "../features/plans/manual-plan-form";
 import { WorkoutExecutionScreen } from "../features/workout/WorkoutExecutionScreen";
 import {
   defaultAppServices,
@@ -47,8 +49,7 @@ export function App({ services = defaultAppServices }: AppProps) {
   const appRef = useRef<HTMLDivElement>(null);
   const [screen, setScreen] = useState<AppScreen>("home");
   const [activePlan, setActivePlan] = useState<StoredPlan | null>(null);
-  const [generatedDraft, setGeneratedDraft] =
-    useState<GeneratedPlanDraft | null>(null);
+  const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [workout, setWorkout] = useState<WorkoutSession | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export function App({ services = defaultAppServices }: AppProps) {
       })
       .catch(() => {
         if (!ignore) {
-          setError("本地训练数据暂时无法读取，请重新打开应用。 ");
+          setError("本地训练数据暂时无法读取，请重新打开应用。");
         }
       });
 
@@ -119,21 +120,22 @@ export function App({ services = defaultAppServices }: AppProps) {
     { scope: appRef, dependencies: [screen], revertOnUpdate: true },
   );
 
-  async function saveGeneratedPlan() {
-    if (!generatedDraft || isBusy) return;
+  async function savePlan(draftOverride?: PlanDraft) {
+    const draftToSave = draftOverride ?? planDraft;
+    if (!draftToSave || isBusy) return;
     setIsBusy(true);
     setError(null);
     try {
       const plan = await services.plans.saveActive({
         id: activePlan?.id ?? services.createId(),
         name: activePlan?.name ?? "我的居家计划",
-        draft: generatedDraft,
+        draft: draftToSave,
       });
       setActivePlan(plan);
-      setGeneratedDraft(null);
+      setPlanDraft(null);
       setScreen("today");
     } catch {
-      setError("计划未能保存，请重试。你的输入仍保留在本页。 ");
+      setError("计划未能保存，请重试。你的输入仍保留在本页。");
     } finally {
       setIsBusy(false);
     }
@@ -157,7 +159,7 @@ export function App({ services = defaultAppServices }: AppProps) {
       setWorkout(transition.state);
       setScreen("workout");
     } catch {
-      setError("训练未能开始，请确认当前没有另一场进行中的训练。 ");
+      setError("训练未能开始，请确认当前没有另一场进行中的训练。");
     } finally {
       setIsBusy(false);
     }
@@ -210,11 +212,13 @@ export function App({ services = defaultAppServices }: AppProps) {
 
             {screen === "plan-builder" ? (
               <PlanBuilderScreen
-                draft={generatedDraft}
+                draft={planDraft}
+                initialMode={activePlan?.draft.source.kind ?? "generated"}
                 isBusy={isBusy}
                 onBack={() => setScreen(activePlan ? "today" : "home")}
-                onGenerated={setGeneratedDraft}
-                onSave={() => void saveGeneratedPlan()}
+                onGenerated={setPlanDraft}
+                onManualCreated={(draft) => void savePlan(draft)}
+                onSave={() => void savePlan()}
               />
             ) : null}
 
@@ -223,7 +227,7 @@ export function App({ services = defaultAppServices }: AppProps) {
                 plan={activePlan}
                 isBusy={isBusy}
                 onEdit={() => {
-                  setGeneratedDraft(null);
+                  setPlanDraft(null);
                   setScreen("plan-builder");
                 }}
                 onStart={() => void startWorkout()}
@@ -285,7 +289,7 @@ function LandingScreen({ onCreate }: { onCreate: () => void }) {
         <div className="readiness-copy">
           <p className="status-label">当前状态</p>
           <h2>还没有训练计划</h2>
-          <p>先用规则自动生成；手动计划编辑将在下一小步补齐。</p>
+          <p>可以用离线规则自动生成，也可以逐个动作手动安排。</p>
         </div>
       </section>
 
@@ -304,27 +308,77 @@ function LandingScreen({ onCreate }: { onCreate: () => void }) {
 
 function PlanBuilderScreen({
   draft,
+  initialMode,
   isBusy,
   onBack,
   onGenerated,
+  onManualCreated,
   onSave,
 }: {
-  draft: GeneratedPlanDraft | null;
+  draft: PlanDraft | null;
+  initialMode: PlanDraft["source"]["kind"];
   isBusy: boolean;
   onBack: () => void;
   onGenerated: (draft: GeneratedPlanDraft) => void;
+  onManualCreated: (draft: Extract<PlanDraft, { source: { kind: "manual" } }>) => void;
   onSave: () => void;
 }) {
+  const [mode, setMode] = useState<PlanDraft["source"]["kind"]>(initialMode);
+
   return (
     <div className="flow-screen">
       <button className="text-action js-screen-reveal" type="button" onClick={onBack}>
         <ArrowLeft size={17} aria-hidden="true" />
         返回
       </button>
-      <div className="js-screen-reveal">
-        <PlanGenerationForm onPlanGenerated={onGenerated} />
+
+      <div className="plan-mode-switch js-screen-reveal" role="tablist" aria-label="计划创建方式">
+        <button
+          aria-controls="generated-plan-panel"
+          aria-selected={mode === "generated"}
+          id="generated-plan-tab"
+          role="tab"
+          type="button"
+          onClick={() => setMode("generated")}
+        >
+          规则生成
+        </button>
+        <button
+          aria-controls="manual-plan-panel"
+          aria-selected={mode === "manual"}
+          id="manual-plan-tab"
+          role="tab"
+          type="button"
+          onClick={() => setMode("manual")}
+        >
+          手动创建
+        </button>
       </div>
-      {draft ? (
+
+      {mode === "generated" ? (
+        <div
+          aria-labelledby="generated-plan-tab"
+          className="js-screen-reveal"
+          id="generated-plan-panel"
+          role="tabpanel"
+        >
+          <PlanGenerationForm onPlanGenerated={onGenerated} />
+        </div>
+      ) : (
+        <div
+          aria-labelledby="manual-plan-tab"
+          className="js-screen-reveal"
+          id="manual-plan-panel"
+          role="tabpanel"
+        >
+          <ManualPlanForm
+            isSubmitting={isBusy}
+            onPlanCreated={onManualCreated}
+          />
+        </div>
+      )}
+
+      {mode === "generated" && draft?.source.kind === "generated" ? (
         <div className="sticky-action js-screen-reveal">
           <button
             className="primary-action"
@@ -400,7 +454,7 @@ function TodayScreen({
           <ArrowUpRight size={21} aria-hidden="true" />
         </button>
         <button className="text-action text-action--center" type="button" onClick={onEdit}>
-          重新生成计划
+          调整训练计划
         </button>
       </div>
     </div>
@@ -432,7 +486,7 @@ function snapshotFromPlan(plan: StoredPlan): WorkoutPlanSnapshot {
 }
 
 function estimateMinutes(
-  exercises: GeneratedPlanDraft["days"][number]["exercises"],
+  exercises: PlanDraft["days"][number]["exercises"],
 ): number {
   const seconds = exercises.reduce(
     (total, exercise) =>

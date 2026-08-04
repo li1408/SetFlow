@@ -86,10 +86,14 @@ function toNumber(value: string): number {
 }
 
 export interface ManualPlanFormProps {
+  isSubmitting?: boolean;
   onPlanCreated: (plan: ManualPlanDraft) => void;
 }
 
-export function ManualPlanForm({ onPlanCreated }: ManualPlanFormProps) {
+export function ManualPlanForm({
+  isSubmitting = false,
+  onPlanCreated,
+}: ManualPlanFormProps) {
   const titleId = useId();
   const catalogHelpId = useId();
   const errorId = useId();
@@ -126,6 +130,7 @@ export function ManualPlanForm({ onPlanCreated }: ManualPlanFormProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
 
     const candidate = {
       source: { kind: "manual" as const },
@@ -395,8 +400,12 @@ export function ManualPlanForm({ onPlanCreated }: ManualPlanFormProps) {
           </p>
         ) : null}
 
-        <button className="manual-plan-form__submit" type="submit">
-          保存手动计划
+        <button
+          className="manual-plan-form__submit"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "正在保存…" : "保存手动计划"}
         </button>
       </form>
     </section>

@@ -58,6 +58,26 @@ describe("App", () => {
     );
   });
 
+  it("creates and saves a manual plan from the same plan builder", async () => {
+    const services = createServices();
+    const user = userEvent.setup();
+    render(<App services={services} />);
+    await waitFor(() => expect(services.plans.getActive).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "创建我的计划" }));
+    await user.click(screen.getByRole("tab", { name: "手动创建" }));
+    await user.click(screen.getByRole("button", { name: "保存手动计划" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "居家全身训练" }),
+    ).toBeInTheDocument();
+    expect(services.plans.saveActive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: expect.objectContaining({ source: { kind: "manual" } }),
+      }),
+    );
+  });
+
   it("resumes a persisted active workout on launch", async () => {
     const services = createServices();
     const active = createWorkoutSession("persisted-workout", snapshot);
