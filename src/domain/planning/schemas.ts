@@ -74,30 +74,59 @@ const plannedTargetSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export const generatedPlanDraftSchema = z.strictObject({
-  source: z.strictObject({
-    kind: z.literal("generated"),
-    ruleVersion: z.string().min(1).max(32),
-  }),
-  days: z
-    .array(
-      z.strictObject({
-        ordinal: z.number().int().positive().max(7),
-        name: z.string().trim().min(1).max(80),
-        exercises: z
-          .array(
-            z.strictObject({
-              exerciseId: z.string().min(1).max(128),
-              order: z.number().int().nonnegative(),
-              sets: z.number().int().min(1).max(20),
-              target: plannedTargetSchema,
-              restSeconds: z.number().int().min(0).max(600),
-            }),
-          )
-          .min(1)
-          .max(30),
-      }),
-    )
-    .min(1)
-    .max(7),
-});
+export const generatedPlanDraftSchema = z
+  .strictObject({
+    source: z.strictObject({
+      kind: z.literal("generated"),
+      ruleVersion: z.string().min(1).max(32),
+    }),
+    days: z
+      .array(
+        z.strictObject({
+          ordinal: z.number().int().positive().max(7),
+          name: z.string().trim().min(1).max(80),
+          exercises: z
+            .array(
+              z.strictObject({
+                exerciseId: z.string().min(1).max(128),
+                order: z.number().int().nonnegative(),
+                sets: z.number().int().min(1).max(20),
+                target: plannedTargetSchema,
+                restSeconds: z.number().int().min(0).max(600),
+              }),
+            )
+            .min(1)
+            .max(30),
+        }),
+      )
+      .min(1)
+      .max(7),
+  })
+  .superRefine((draft, context) => {
+    if (new Set(draft.days.map((day) => day.ordinal)).size !== draft.days.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["days"],
+        message: "训练日顺序不能重复",
+      });
+    }
+
+    draft.days.forEach((day, dayIndex) => {
+      const orders = day.exercises.map((exercise) => exercise.order);
+      const exerciseIds = day.exercises.map((exercise) => exercise.exerciseId);
+      if (new Set(orders).size !== orders.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["days", dayIndex, "exercises"],
+          message: "动作顺序不能重复",
+        });
+      }
+      if (new Set(exerciseIds).size !== exerciseIds.length) {
+        context.addIssue({
+          code: "custom",
+          path: ["days", dayIndex, "exercises"],
+          message: "同一训练日不能重复同一动作",
+        });
+      }
+    });
+  });

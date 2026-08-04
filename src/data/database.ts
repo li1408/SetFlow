@@ -3,6 +3,7 @@ import {
   DATABASE_SCHEMA_VERSION,
   type StoredActiveRest,
   type StoredPlan,
+  type StoredReminderJob,
   type StoredSetting,
   type StoredWorkout,
 } from "./types";
@@ -10,6 +11,7 @@ import {
 export class SetFlowDatabase extends Dexie {
   workouts!: Table<StoredWorkout, string>;
   activeRestTimers!: Table<StoredActiveRest, string>;
+  reminderJobs!: Table<StoredReminderJob, string>;
   plans!: Table<StoredPlan, string>;
   settings!: Table<StoredSetting, string>;
 
@@ -19,13 +21,15 @@ export class SetFlowDatabase extends Dexie {
     this.version(DATABASE_SCHEMA_VERSION).stores({
       workouts: "&id,&activeSlot,status,updatedAt",
       activeRestTimers:
-        "&id,&notificationId,&activeSlot,workoutId,status,notificationSync,endsAt,updatedAt",
+        "&id,&notificationId,&activeSlot,workoutId,status,endsAt,updatedAt",
+      reminderJobs: "&id,status,action,timerId,updatedAt",
       plans: "&id,&activeSlot,status,updatedAt",
       settings: "&key,updatedAt",
     });
 
     this.workouts = this.table("workouts");
     this.activeRestTimers = this.table("activeRestTimers");
+    this.reminderJobs = this.table("reminderJobs");
     this.plans = this.table("plans");
     this.settings = this.table("settings");
   }

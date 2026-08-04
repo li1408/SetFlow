@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { generatedPlanDraftSchema } from "../domain/planning/schemas";
 import type { GeneratedPlanDraft } from "../domain/planning/types";
 import type { SetFlowDatabase } from "./database";
@@ -12,6 +13,12 @@ export interface SaveActivePlanInput {
   draft: GeneratedPlanDraft;
 }
 
+const saveActivePlanInputSchema = z.strictObject({
+  id: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+  name: z.string().trim().min(1).max(80),
+  draft: generatedPlanDraftSchema,
+});
+
 export class PlanRepository {
   constructor(
     private readonly database: SetFlowDatabase,
@@ -19,25 +26,26 @@ export class PlanRepository {
   ) {}
 
   async saveActive(input: SaveActivePlanInput): Promise<StoredPlan> {
-    const draft = generatedPlanDraftSchema.parse(input.draft) as GeneratedPlanDraft;
+    const validated = saveActivePlanInputSchema.parse(input);
+    const draft = validated.draft as GeneratedPlanDraft;
 
     return this.database.transaction("rw", this.database.plans, async () => {
       const active = await this.database.plans
         .where("activeSlot")
         .equals("active")
         .first();
-      const existing = await this.database.plans.get(input.id);
+      const existing = await this.database.plans.get(validated.id);
       const now = this.now();
 
-      if (active && active.id !== input.id) {
+      if (active && active.id !== validated.id) {
         const archived: StoredPlan = { ...active, status: "archived", updatedAt: now };
         delete archived.activeSlot;
         await this.database.plans.put(archived);
       }
 
       const plan: StoredPlan = {
-        id: input.id,
-        name: input.name.trim(),
+        id: validated.id,
+        name: validated.name,
         draft,
         status: "active",
         activeSlot: "active",

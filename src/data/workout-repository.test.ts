@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createWorkoutSession } from "../domain/workout/workout-machine";
 import type {
+  WorkoutSession,
   WorkoutEvent,
   WorkoutPlanSnapshot,
 } from "../domain/workout/types";
 import { SetFlowDatabase } from "./database";
-import { ActiveWorkoutExistsError, WorkoutRepository } from "./workout-repository";
+import {
+  ActiveWorkoutExistsError,
+  InvalidInitialWorkoutError,
+  WorkoutRepository,
+} from "./workout-repository";
 
 const openedDatabases: SetFlowDatabase[] = [];
 
@@ -59,8 +64,15 @@ describe("WorkoutRepository", () => {
       revision: 0,
       endsAt: 62_000,
       status: "active",
-      notificationSync: "pending",
     });
+    expect(await repository.listReminderJobs()).toEqual([
+      expect.objectContaining({
+        timerId: "rest-1",
+        revision: 0,
+        action: "schedule",
+        status: "pending",
+      }),
+    ]);
 
     firstDatabase.close();
     const reopenedDatabase = track(new SetFlowDatabase(databaseName));
@@ -75,7 +87,8 @@ describe("WorkoutRepository", () => {
 
     const replayed = await reopened.apply("session-1", event);
     expect(replayed).toMatchObject({ kind: "noop", reason: "DUPLICATE_SET" });
-    expect(restored?.performedSets).toHaveLength(1);
+    expect((await reopened.getActive())?.performedSets).toHaveLength(1);
+    expect(await reopenedDatabase.activeRestTimers.count()).toBe(1);
   });
 
   it("updates or removes the single active rest with the workout transition", async () => {
@@ -104,15 +117,15 @@ describe("WorkoutRepository", () => {
       at: 11_000,
     });
     expect(await repository.getActiveRest("session-1")).toBeNull();
-    expect(await repository.listReminderJobs()).toEqual([
-      expect.objectContaining({
-        id: "rest-1",
-        revision: 1,
-        status: "skipped",
-        desiredNativeState: "canceled",
-        notificationSync: "pending",
-      }),
+    const reminderJobs = await repository.listReminderJobs();
+    expect(reminderJobs.map((job) => job.action)).toEqual([
+      "cancel",
+      "cancel",
     ]);
+    expect(reminderJobs.map((job) => job.revision)).toEqual([0, 1]);
+    expect(await database.activeRestTimers.get("rest-1")).toMatchObject({
+      status: "skipped",
+    });
     expect(await repository.getActive()).toMatchObject({
       phase: { kind: "next_set_ready" },
     });
@@ -124,6 +137,7 @@ describe("WorkoutRepository", () => {
     );
     const repository = new WorkoutRepository(database, () => 10_000);
     await createRestingWorkout(repository);
+    const originalSchedule = (await repository.listReminderJobs())[0]!;
     await repository.apply("session-1", {
       type: "adjust_rest",
       timerId: "rest-1",
@@ -134,22 +148,23 @@ describe("WorkoutRepository", () => {
 
     await expect(
       repository.markReminderApplied({
-        timerId: "rest-1",
-        expectedRevision: 0,
-        desiredNativeState: "scheduled",
+        jobId: originalSchedule.id,
       }),
-    ).resolves.toBe(false);
-    expect((await repository.getActiveRest("session-1"))?.notificationSync).toBe(
-      "pending",
-    );
+    ).resolves.toEqual({
+      applied: false,
+      compensateCancelNotificationId: originalSchedule.notificationId,
+    });
 
-    await expect(
-      repository.markReminderApplied({
-        timerId: "rest-1",
-        expectedRevision: 1,
-        desiredNativeState: "scheduled",
-      }),
-    ).resolves.toBe(true);
+    const currentJobs = await repository.listReminderJobs();
+    expect(currentJobs.map((job) => job.action)).toEqual([
+      "cancel",
+      "schedule",
+    ]);
+    for (const job of currentJobs) {
+      await expect(repository.markReminderApplied({ jobId: job.id })).resolves.toEqual({
+        applied: true,
+      });
+    }
     expect(await repository.listReminderJobs()).toEqual([]);
   });
 
@@ -170,9 +185,9 @@ describe("WorkoutRepository", () => {
     expect(secondRecovery).toEqual(firstRecovery);
     expect(await repository.listReminderJobs()).toEqual([
       expect.objectContaining({
-        id: "rest-1",
-        status: "finished",
-        desiredNativeState: "canceled",
+        timerId: "rest-1",
+        action: "cancel",
+        revision: 0,
       }),
     ]);
   });
@@ -195,8 +210,6 @@ describe("WorkoutRepository", () => {
       notificationId: 99,
       activeSlot: "active",
       status: "active",
-      desiredNativeState: "scheduled",
-      notificationSync: "pending",
       handledAt: null,
       updatedAt: 0,
       schemaVersion: 1,
@@ -230,6 +243,49 @@ describe("WorkoutRepository", () => {
       repository.create(createWorkoutSession("session-2", snapshot)),
     ).rejects.toBeInstanceOf(ActiveWorkoutExistsError);
     expect((await repository.getActive())?.id).toBe("session-1");
+  });
+
+  it("rejects non-fresh sessions when creating an active workout", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-fresh-only-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 1_000);
+    const completed: WorkoutSession = {
+      ...createWorkoutSession("session-completed", snapshot),
+      startedAt: 500,
+      phase: { kind: "completed", completedAt: 1_000 },
+    };
+
+    await expect(repository.create(completed)).rejects.toBeInstanceOf(
+      InvalidInitialWorkoutError,
+    );
+    expect(await repository.getActive()).toBeNull();
+  });
+
+  it("rejects malformed runtime events before they can corrupt storage", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-event-boundary-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 2_000);
+    await repository.create(createWorkoutSession("session-1", snapshot));
+    await repository.apply("session-1", { type: "start", at: 1_000 });
+
+    await expect(
+      repository.apply("session-1", {
+        type: "complete_set",
+        expectedPosition: { exerciseIndex: 0, setIndex: 0 },
+        performedSetId: "performed-invalid",
+        restTimerId: "rest-invalid",
+        at: 2_000,
+        actual: { kind: "reps", reps: -1, additionalWeightKg: null },
+      }),
+    ).rejects.toBeTruthy();
+
+    expect(await repository.getActive()).toMatchObject({
+      phase: { kind: "active_set" },
+      performedSets: [],
+    });
+    expect(await database.activeRestTimers.count()).toBe(0);
   });
 });
 

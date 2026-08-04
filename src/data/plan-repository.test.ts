@@ -107,6 +107,39 @@ describe("PlanRepository", () => {
       },
     });
   });
+
+  it("rejects invalid plan identity and duplicate ordering before storage", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-plan-boundary-${crypto.randomUUID()}`),
+    );
+    const plans = new PlanRepository(database, () => 1_000);
+
+    await expect(
+      plans.saveActive({ id: "", name: " ", draft }),
+    ).rejects.toBeTruthy();
+    await expect(
+      plans.saveActive({
+        id: "plan-duplicate",
+        name: "重复顺序",
+        draft: {
+          ...draft,
+          days: [
+            {
+              ...draft.days[0]!,
+              exercises: [
+                draft.days[0]!.exercises[0]!,
+                {
+                  ...draft.days[0]!.exercises[0]!,
+                  exerciseId: "wall-push-up",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ).rejects.toBeTruthy();
+    expect(await database.plans.count()).toBe(0);
+  });
 });
 
 function track(database: SetFlowDatabase) {

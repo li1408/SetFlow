@@ -24,9 +24,21 @@ export interface StoredActiveRest {
   notificationId: number;
   activeSlot?: "active";
   status: "active" | "finished" | "skipped";
-  desiredNativeState: "scheduled" | "canceled";
-  notificationSync: "pending" | "synced" | "blocked";
   handledAt: number | null;
+  updatedAt: number;
+  schemaVersion: number;
+}
+
+export interface StoredReminderJob {
+  id: string;
+  timerId: string;
+  workoutId: string;
+  revision: number;
+  action: "schedule" | "cancel";
+  notificationId: number;
+  endsAt: number | null;
+  status: "pending" | "synced" | "blocked" | "superseded";
+  createdAt: number;
   updatedAt: number;
   schemaVersion: number;
 }

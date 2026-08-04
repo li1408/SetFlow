@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { WorkoutSession } from "../domain/workout/types";
+import type {
+  WorkoutEvent,
+  WorkoutSession,
+} from "../domain/workout/types";
 
 const idSchema = z.string().min(1).max(128);
 const timestampSchema = z.number().int().nonnegative();
@@ -32,6 +35,41 @@ const actualSetSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("durationSeconds"),
     seconds: z.number().int().nonnegative(),
+  }),
+]);
+
+const workoutEventSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("start"), at: timestampSchema }),
+  z.strictObject({
+    type: z.literal("complete_set"),
+    expectedPosition: positionSchema,
+    performedSetId: idSchema,
+    restTimerId: idSchema,
+    at: timestampSchema,
+    actual: actualSetSchema,
+  }),
+  z.strictObject({
+    type: z.literal("rest_elapsed"),
+    timerId: idSchema,
+    expectedRevision: z.number().int().nonnegative(),
+    at: timestampSchema,
+  }),
+  z.strictObject({
+    type: z.literal("adjust_rest"),
+    timerId: idSchema,
+    expectedRevision: z.number().int().nonnegative(),
+    deltaSeconds: z.union([z.literal(-15), z.literal(15)]),
+    at: timestampSchema,
+  }),
+  z.strictObject({
+    type: z.literal("skip_rest"),
+    timerId: idSchema,
+    expectedRevision: z.number().int().nonnegative(),
+    at: timestampSchema,
+  }),
+  z.strictObject({
+    type: z.literal("activate_next_set"),
+    expectedPosition: positionSchema,
   }),
 ]);
 
@@ -95,4 +133,8 @@ const workoutSessionSchema = z.strictObject({
 
 export function parseWorkoutSession(input: unknown): WorkoutSession {
   return workoutSessionSchema.parse(input) as WorkoutSession;
+}
+
+export function parseWorkoutEvent(input: unknown): WorkoutEvent {
+  return workoutEventSchema.parse(input) as WorkoutEvent;
 }

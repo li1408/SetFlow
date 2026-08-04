@@ -9,9 +9,13 @@ import type { SetFlowDatabase } from "./database";
 import {
   DATABASE_SCHEMA_VERSION,
   type StoredActiveRest,
+  type StoredReminderJob,
   type StoredWorkout,
 } from "./types";
-import { parseWorkoutSession } from "./workout-validation";
+import {
+  parseWorkoutEvent,
+  parseWorkoutSession,
+} from "./workout-validation";
 
 export class ActiveWorkoutExistsError extends Error {
   constructor() {
@@ -27,6 +31,13 @@ export class WorkoutNotFoundError extends Error {
   }
 }
 
+export class InvalidInitialWorkoutError extends Error {
+  constructor() {
+    super("An active workout must start as a fresh idle session");
+    this.name = "InvalidInitialWorkoutError";
+  }
+}
+
 export class WorkoutRepository {
   constructor(
     private readonly database: SetFlowDatabase,
@@ -35,6 +46,13 @@ export class WorkoutRepository {
 
   async create(session: WorkoutSession): Promise<void> {
     const validatedSession = parseWorkoutSession(session);
+    if (
+      validatedSession.phase.kind !== "idle" ||
+      validatedSession.startedAt !== null ||
+      validatedSession.performedSets.length > 0
+    ) {
+      throw new InvalidInitialWorkoutError();
+    }
 
     await this.database.transaction("rw", this.database.workouts, async () => {
       const existing = await this.database.workouts
@@ -73,36 +91,44 @@ export class WorkoutRepository {
     return record?.workoutId === workoutId ? record : null;
   }
 
-  async listReminderJobs(): Promise<StoredActiveRest[]> {
-    return this.database.activeRestTimers
-      .where("notificationSync")
+  async listReminderJobs(): Promise<StoredReminderJob[]> {
+    const jobs = await this.database.reminderJobs
+      .where("status")
       .equals("pending")
-      .sortBy("updatedAt");
+      .toArray();
+    return jobs.sort(
+      (left, right) =>
+        reminderActionRank(left.action) - reminderActionRank(right.action) ||
+        left.createdAt - right.createdAt ||
+        left.id.localeCompare(right.id),
+    );
   }
 
   async markReminderApplied(command: {
-    timerId: string;
-    expectedRevision: number;
-    desiredNativeState: StoredActiveRest["desiredNativeState"];
-  }): Promise<boolean> {
+    jobId: string;
+  }): Promise<
+    | { applied: true }
+    | { applied: false; compensateCancelNotificationId?: number }
+  > {
     return this.database.transaction(
       "rw",
-      this.database.activeRestTimers,
+      this.database.reminderJobs,
       async () => {
-        const record = await this.database.activeRestTimers.get(command.timerId);
-        if (
-          !record ||
-          record.revision !== command.expectedRevision ||
-          record.desiredNativeState !== command.desiredNativeState
-        ) {
-          return false;
+        const job = await this.database.reminderJobs.get(command.jobId);
+        if (!job || job.status !== "pending") {
+          return {
+            applied: false as const,
+            ...(job?.action === "schedule"
+              ? { compensateCancelNotificationId: job.notificationId }
+              : {}),
+          };
         }
 
-        await this.database.activeRestTimers.update(record.id, {
-          notificationSync: "synced",
+        await this.database.reminderJobs.update(job.id, {
+          status: "synced",
           updatedAt: this.now(),
         });
-        return true;
+        return { applied: true as const };
       },
     );
   }
@@ -126,16 +152,19 @@ export class WorkoutRepository {
     workoutId: string,
     event: WorkoutEvent,
   ): Promise<WorkoutTransition> {
+    const validatedEvent = parseWorkoutEvent(event);
+
     return this.database.transaction(
       "rw",
       this.database.workouts,
       this.database.activeRestTimers,
+      this.database.reminderJobs,
       async () => {
         const record = await this.database.workouts.get(workoutId);
         if (!record) throw new WorkoutNotFoundError(workoutId);
 
         const current = parseWorkoutSession(record.session);
-        const transition = transitionWorkout(current, event);
+        const transition = transitionWorkout(current, validatedEvent);
         if (transition.kind !== "changed") return transition;
 
         const now = this.now();
@@ -185,6 +214,14 @@ export class WorkoutRepository {
     updatedAt: number,
   ): Promise<void> {
     const existing = await this.database.activeRestTimers.get(timer.id);
+    if (existing && existing.revision !== timer.revision) {
+      await this.supersedeSchedule(existing);
+      await this.queueCancel(existing, updatedAt);
+    }
+    const notificationId =
+      existing?.revision === timer.revision
+        ? existing.notificationId
+        : notificationIdFor(timer.id, timer.revision);
     await this.database.activeRestTimers.put({
       id: timer.id,
       workoutId,
@@ -193,15 +230,23 @@ export class WorkoutRepository {
       startedAt: timer.startedAt,
       endsAt: timer.endsAt,
       totalAdjustmentSeconds: timer.totalAdjustmentSeconds,
-      notificationId: existing?.notificationId ?? notificationIdFor(timer.id),
+      notificationId,
       activeSlot: "active",
       status: "active",
-      desiredNativeState: "scheduled",
-      notificationSync: "pending",
       handledAt: null,
       updatedAt,
       schemaVersion: DATABASE_SCHEMA_VERSION,
     });
+    await this.queueSchedule(
+      {
+        id: timer.id,
+        workoutId,
+        revision: timer.revision,
+        notificationId,
+        endsAt: timer.endsAt,
+      },
+      updatedAt,
+    );
   }
 
   private async finishRest(
@@ -212,22 +257,95 @@ export class WorkoutRepository {
     const record = await this.database.activeRestTimers.get(timerId);
     if (!record) return;
 
+    await this.supersedeSchedule(record);
+    await this.queueCancel(record, updatedAt);
+
     const finished = {
       ...record,
       status,
-      desiredNativeState: "canceled" as const,
-      notificationSync: "pending" as const,
       handledAt: updatedAt,
       updatedAt,
     };
     delete finished.activeSlot;
     await this.database.activeRestTimers.put(finished);
   }
+
+  private async supersedeSchedule(rest: StoredActiveRest): Promise<void> {
+    const jobId = reminderJobId(rest.id, rest.revision, "schedule");
+    const job = await this.database.reminderJobs.get(jobId);
+    if (job?.status === "pending") {
+      await this.database.reminderJobs.update(jobId, {
+        status: "superseded",
+        updatedAt: this.now(),
+      });
+    }
+  }
+
+  private async queueSchedule(
+    rest: {
+      id: string;
+      workoutId: string;
+      revision: number;
+      notificationId: number;
+      endsAt: number;
+    },
+    now: number,
+  ): Promise<void> {
+    const id = reminderJobId(rest.id, rest.revision, "schedule");
+    const existing = await this.database.reminderJobs.get(id);
+    if (existing) return;
+
+    await this.database.reminderJobs.add({
+      id,
+      timerId: rest.id,
+      workoutId: rest.workoutId,
+      revision: rest.revision,
+      action: "schedule",
+      notificationId: rest.notificationId,
+      endsAt: rest.endsAt,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      schemaVersion: DATABASE_SCHEMA_VERSION,
+    });
+  }
+
+  private async queueCancel(rest: StoredActiveRest, now: number): Promise<void> {
+    const id = reminderJobId(rest.id, rest.revision, "cancel");
+    const existing = await this.database.reminderJobs.get(id);
+    if (existing) return;
+
+    await this.database.reminderJobs.add({
+      id,
+      timerId: rest.id,
+      workoutId: rest.workoutId,
+      revision: rest.revision,
+      action: "cancel",
+      notificationId: rest.notificationId,
+      endsAt: null,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      schemaVersion: DATABASE_SCHEMA_VERSION,
+    });
+  }
 }
 
-function notificationIdFor(timerId: string): number {
+function reminderJobId(
+  timerId: string,
+  revision: number,
+  action: StoredReminderJob["action"],
+): string {
+  return `${timerId}:${revision}:${action}`;
+}
+
+function reminderActionRank(action: StoredReminderJob["action"]): number {
+  return action === "cancel" ? 0 : 1;
+}
+
+function notificationIdFor(timerId: string, revision: number): number {
   let hash = 2_166_136_261;
-  for (const character of timerId) {
+  for (const character of `${timerId}:${revision}`) {
     hash ^= character.charCodeAt(0);
     hash = Math.imul(hash, 16_777_619);
   }
