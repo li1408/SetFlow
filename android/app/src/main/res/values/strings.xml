@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SetFlow</string>
+    <string name="title_activity_main">SetFlow</string>
+    <string name="package_name">com.setflow.fitness</string>
+    <string name="custom_url_scheme">com.setflow.fitness</string>
+</resources>

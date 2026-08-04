@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#C8FF3D</color>
+    <color name="colorPrimaryDark">#11130F</color>
+    <color name="colorAccent">#C8FF3D</color>
+    <color name="setflow_canvas">#11130F</color>
+</resources>
