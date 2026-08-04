@@ -14,6 +14,14 @@ export class UnsupportedReminderAdapter implements ReminderAdapter {
     return "unsupported";
   }
 
+  async checkExactAlarmSetting(): Promise<ReminderPermissionState> {
+    return "unsupported";
+  }
+
+  async openExactAlarmSetting(): Promise<ReminderPermissionState> {
+    return "unsupported";
+  }
+
   async schedule(
     request: ReminderScheduleRequest,
   ): Promise<ReminderOperationResult> {

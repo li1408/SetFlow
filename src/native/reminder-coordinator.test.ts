@@ -120,6 +120,14 @@ class FakeReminderAdapter implements ReminderAdapter {
     return "granted";
   }
 
+  async checkExactAlarmSetting(): Promise<ReminderPermissionState> {
+    return "granted";
+  }
+
+  async openExactAlarmSetting(): Promise<ReminderPermissionState> {
+    return "granted";
+  }
+
   async schedule(
     request: ReminderScheduleRequest,
   ): Promise<ReminderOperationResult> {

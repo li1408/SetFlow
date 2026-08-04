@@ -78,6 +78,65 @@ describe("App", () => {
     );
   });
 
+  it("requests notification and exact alarm access only after a user action", async () => {
+    const services = createServices();
+    vi.mocked(services.plans.getActive).mockResolvedValue(storedPlanFixture());
+    vi.mocked(services.reminders.checkPermission).mockResolvedValue("prompt");
+    vi.mocked(services.reminders.checkExactAlarmSetting).mockResolvedValue(
+      "denied",
+    );
+    vi.mocked(services.reminders.requestPermission).mockResolvedValue(
+      "granted",
+    );
+    vi.mocked(services.reminders.openExactAlarmSetting).mockResolvedValue(
+      "granted",
+    );
+
+    const user = userEvent.setup();
+    render(<App services={services} />);
+
+    const enableButton = await screen.findByRole("button", {
+      name: "开启休息提醒",
+    });
+    expect(services.reminders.requestPermission).not.toHaveBeenCalled();
+    expect(services.reminders.openExactAlarmSetting).not.toHaveBeenCalled();
+
+    await user.click(enableButton);
+
+    await waitFor(() =>
+      expect(screen.getByText("后台提醒已开启")).toBeInTheDocument(),
+    );
+    expect(services.reminders.requestPermission).toHaveBeenCalledOnce();
+    expect(services.reminders.openExactAlarmSetting).toHaveBeenCalledOnce();
+    expect(services.reminders.flush).toHaveBeenCalledOnce();
+  });
+
+  it("flushes reminder jobs and plays foreground feedback when rest ends", async () => {
+    const services = createServices();
+    vi.mocked(services.plans.getActive).mockResolvedValue(storedPlanFixture(0));
+    vi.mocked(services.reminders.checkPermission).mockResolvedValue("granted");
+    vi.mocked(services.reminders.checkExactAlarmSetting).mockResolvedValue(
+      "granted",
+    );
+    const user = userEvent.setup();
+    render(<App services={services} />);
+
+    await screen.findByText("后台提醒已开启");
+    await waitFor(() => expect(services.reminders.flush).toHaveBeenCalled());
+    const initialFlushCount = vi.mocked(services.reminders.flush).mock.calls
+      .length;
+
+    await user.click(screen.getByRole("button", { name: "开始今天训练" }));
+    await user.click(await screen.findByRole("button", { name: "完成本组" }));
+
+    await waitFor(() =>
+      expect(services.reminders.notifyRestEnded).toHaveBeenCalledOnce(),
+    );
+    expect(vi.mocked(services.reminders.flush).mock.calls.length).toBeGreaterThan(
+      initialFlushCount,
+    );
+  });
+
   it("resumes a persisted active workout on launch", async () => {
     const services = createServices();
     const active = createWorkoutSession("persisted-workout", snapshot);
@@ -139,7 +198,50 @@ function createServices(): AppServices {
         return transition;
       }),
     },
+    reminders: {
+      checkPermission: vi.fn(async () => "unsupported" as const),
+      requestPermission: vi.fn(async () => "unsupported" as const),
+      checkExactAlarmSetting: vi.fn(async () => "unsupported" as const),
+      openExactAlarmSetting: vi.fn(async () => "unsupported" as const),
+      flush: vi.fn(async () => undefined),
+      notifyRestEnded: vi.fn(async () => undefined),
+    },
     now: () => 1_000,
     createId: () => ids.shift() ?? "fallback-id",
+  };
+}
+
+function storedPlanFixture(restSeconds = 60): StoredPlan {
+  return {
+    id: "plan-id",
+    name: "我的居家计划",
+    draft: {
+      source: { kind: "generated", ruleVersion: "v1" },
+      days: [
+        {
+          ordinal: 1,
+          name: "全身训练 A",
+          exercises: [
+            {
+              exerciseId: "bodyweight-squat",
+              order: 0,
+              sets: 2,
+              target: {
+                kind: "reps",
+                min: 8,
+                max: 12,
+                basis: "total",
+              },
+              restSeconds,
+            },
+          ],
+        },
+      ],
+    },
+    status: "active",
+    activeSlot: "active",
+    createdAt: 1_000,
+    updatedAt: 1_000,
+    schemaVersion: 1,
   };
 }

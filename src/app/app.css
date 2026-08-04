@@ -426,6 +426,51 @@ select:focus-visible {
   line-height: 1.45;
 }
 
+.reminder-readiness {
+  display: grid;
+  padding: var(--space-4);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 24%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+}
+
+.reminder-readiness > svg {
+  margin-top: 0.1rem;
+  color: var(--color-accent);
+}
+
+.reminder-readiness strong {
+  font-size: 0.86rem;
+}
+
+.reminder-readiness p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.reminder-readiness button {
+  min-height: 2.75rem;
+  padding-inline: var(--space-4);
+  grid-column: 1 / -1;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.reminder-readiness button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .today-actions {
   display: grid;
 }

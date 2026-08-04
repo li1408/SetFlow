@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PermissionStatus } from "@capacitor/local-notifications";
+import type {
+  PermissionStatus,
+  SettingsPermissionStatus,
+} from "@capacitor/local-notifications";
 import {
   CapacitorReminderAdapter,
   SETFLOW_REST_CHANNEL_ID,
@@ -23,6 +26,12 @@ describe("UnsupportedReminderAdapter", () => {
 
     await expect(adapter.checkPermission()).resolves.toBe("unsupported");
     await expect(adapter.requestPermission()).resolves.toBe("unsupported");
+    await expect(adapter.checkExactAlarmSetting()).resolves.toBe(
+      "unsupported",
+    );
+    await expect(adapter.openExactAlarmSetting()).resolves.toBe(
+      "unsupported",
+    );
     await expect(adapter.schedule(request)).resolves.toEqual({
       status: "unsupported",
     });
@@ -50,6 +59,8 @@ describe("CapacitorReminderAdapter", () => {
     });
     expect(notifications.checkPermissions).not.toHaveBeenCalled();
     expect(notifications.requestPermissions).not.toHaveBeenCalled();
+    expect(notifications.checkExactNotificationSetting).not.toHaveBeenCalled();
+    expect(notifications.changeExactNotificationSetting).not.toHaveBeenCalled();
     expect(notifications.createChannel).not.toHaveBeenCalled();
     expect(notifications.schedule).not.toHaveBeenCalled();
     expect(notifications.cancel).not.toHaveBeenCalled();
@@ -68,6 +79,38 @@ describe("CapacitorReminderAdapter", () => {
     await expect(adapter.requestPermission()).resolves.toBe("granted");
     expect(notifications.checkPermissions).toHaveBeenCalledOnce();
     expect(notifications.requestPermissions).toHaveBeenCalledOnce();
+  });
+
+  it("checks exact alarms and opens Android settings only when explicitly called", async () => {
+    const notifications = fakeNotifications();
+    notifications.checkExactNotificationSetting.mockResolvedValue({
+      exact_alarm: "denied",
+    });
+    notifications.changeExactNotificationSetting.mockResolvedValue({
+      exact_alarm: "granted",
+    });
+    const adapter = new CapacitorReminderAdapter(
+      { isNativePlatform: () => true, getPlatform: () => "android" },
+      notifications,
+    );
+
+    await expect(adapter.checkExactAlarmSetting()).resolves.toBe("denied");
+    await expect(adapter.openExactAlarmSetting()).resolves.toBe("granted");
+    expect(notifications.checkExactNotificationSetting).toHaveBeenCalledOnce();
+    expect(notifications.changeExactNotificationSetting).toHaveBeenCalledOnce();
+  });
+
+  it("treats exact alarms as available on non-Android native platforms", async () => {
+    const notifications = fakeNotifications();
+    const adapter = new CapacitorReminderAdapter(
+      { isNativePlatform: () => true, getPlatform: () => "ios" },
+      notifications,
+    );
+
+    await expect(adapter.checkExactAlarmSetting()).resolves.toBe("granted");
+    await expect(adapter.openExactAlarmSetting()).resolves.toBe("granted");
+    expect(notifications.checkExactNotificationSetting).not.toHaveBeenCalled();
+    expect(notifications.changeExactNotificationSetting).not.toHaveBeenCalled();
   });
 
   it("creates the Android rest channel once and schedules at the supplied Date", async () => {
@@ -134,6 +177,16 @@ function fakeNotifications() {
     ),
     requestPermissions: vi.fn(
       async (): Promise<PermissionStatus> => ({ display: "granted" }),
+    ),
+    checkExactNotificationSetting: vi.fn(
+      async (): Promise<SettingsPermissionStatus> => ({
+        exact_alarm: "granted",
+      }),
+    ),
+    changeExactNotificationSetting: vi.fn(
+      async (): Promise<SettingsPermissionStatus> => ({
+        exact_alarm: "granted",
+      }),
     ),
     createChannel: vi.fn(async () => undefined),
     schedule: vi.fn(async () => ({ notifications: [] })),

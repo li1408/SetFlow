@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   CalendarDays,
+  BellRing,
   Clock3,
   Dumbbell,
   LockKeyhole,
@@ -27,6 +28,7 @@ import type {
 import { PlanGenerationForm } from "../features/plans/plan-generation-form";
 import { ManualPlanForm } from "../features/plans/manual-plan-form";
 import { WorkoutExecutionScreen } from "../features/workout/WorkoutExecutionScreen";
+import type { ReminderPermissionState } from "../native/reminder-adapter";
 import {
   defaultAppServices,
   type AppServices,
@@ -36,6 +38,12 @@ import "./app.css";
 gsap.registerPlugin(useGSAP);
 
 type AppScreen = "home" | "plan-builder" | "today" | "workout";
+type ReminderUiState = ReminderPermissionState | "checking" | "error";
+
+interface ReminderReadiness {
+  notification: ReminderUiState;
+  exactAlarm: ReminderUiState;
+}
 
 export interface AppProps {
   services?: AppServices;
@@ -52,6 +60,12 @@ export function App({ services = defaultAppServices }: AppProps) {
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
   const [workout, setWorkout] = useState<WorkoutSession | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isReminderBusy, setIsReminderBusy] = useState(false);
+  const [reminderReadiness, setReminderReadiness] =
+    useState<ReminderReadiness>({
+      notification: "checking",
+      exactAlarm: "checking",
+    });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -81,6 +95,32 @@ export function App({ services = defaultAppServices }: AppProps) {
       ignore = true;
     };
   }, [services]);
+
+  useEffect(() => {
+    if (screen !== "today" || !activePlan) return;
+    let ignore = false;
+
+    void Promise.all([
+      services.reminders.checkPermission(),
+      services.reminders.checkExactAlarmSetting(),
+    ])
+      .then(([notification, exactAlarm]) => {
+        if (ignore) return;
+        setReminderReadiness({ notification, exactAlarm });
+        if (notification === "granted" && exactAlarm === "granted") {
+          void services.reminders.flush().catch(() => undefined);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setReminderReadiness({ notification: "error", exactAlarm: "error" });
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [activePlan, screen, services]);
 
   useGSAP(
     () => {
@@ -165,12 +205,48 @@ export function App({ services = defaultAppServices }: AppProps) {
     }
   }
 
+  async function enableReminders() {
+    if (isReminderBusy) return;
+    setIsReminderBusy(true);
+    try {
+      const notification =
+        reminderReadiness.notification === "granted"
+          ? "granted"
+          : await services.reminders.requestPermission();
+      const exactAlarm =
+        notification === "granted" &&
+        reminderReadiness.exactAlarm !== "granted"
+          ? await services.reminders.openExactAlarmSetting()
+          : reminderReadiness.exactAlarm;
+
+      setReminderReadiness({ notification, exactAlarm });
+      if (notification === "granted" && exactAlarm === "granted") {
+        await services.reminders.flush();
+      }
+    } catch {
+      setReminderReadiness({ notification: "error", exactAlarm: "error" });
+    } finally {
+      setIsReminderBusy(false);
+    }
+  }
+
   async function handleWorkoutEvent(
     event: WorkoutEvent,
   ): Promise<WorkoutTransition> {
     if (!workout) throw new Error("No active workout");
     const transition = await services.workouts.apply(workout.id, event);
     setWorkout(transition.state);
+    if (transition.kind === "changed") {
+      if (transition.facts.some((fact) => fact.type === "REST_FINISHED")) {
+        void services.reminders.notifyRestEnded().catch(() => undefined);
+      }
+      if (
+        reminderReadiness.notification === "granted" &&
+        reminderReadiness.exactAlarm === "granted"
+      ) {
+        void services.reminders.flush().catch(() => undefined);
+      }
+    }
     return transition;
   }
 
@@ -226,11 +302,14 @@ export function App({ services = defaultAppServices }: AppProps) {
               <TodayScreen
                 plan={activePlan}
                 isBusy={isBusy}
+                isReminderBusy={isReminderBusy}
+                reminderReadiness={reminderReadiness}
                 onEdit={() => {
                   setPlanDraft(null);
                   setScreen("plan-builder");
                 }}
                 onStart={() => void startWorkout()}
+                onEnableReminders={() => void enableReminders()}
               />
             ) : null}
           </main>
@@ -398,12 +477,18 @@ function PlanBuilderScreen({
 function TodayScreen({
   plan,
   isBusy,
+  isReminderBusy,
+  reminderReadiness,
   onEdit,
+  onEnableReminders,
   onStart,
 }: {
   plan: StoredPlan;
   isBusy: boolean;
+  isReminderBusy: boolean;
+  reminderReadiness: ReminderReadiness;
   onEdit: () => void;
+  onEnableReminders: () => void;
   onStart: () => void;
 }) {
   const day = plan.draft.days[0]!;
@@ -443,6 +528,12 @@ function TodayScreen({
         })}
       </ol>
 
+      <ReminderReadinessCard
+        isBusy={isReminderBusy}
+        readiness={reminderReadiness}
+        onEnable={onEnableReminders}
+      />
+
       <div className="today-actions js-screen-reveal">
         <button
           className="primary-action"
@@ -458,6 +549,63 @@ function TodayScreen({
         </button>
       </div>
     </div>
+  );
+}
+
+function ReminderReadinessCard({
+  isBusy,
+  readiness,
+  onEnable,
+}: {
+  isBusy: boolean;
+  readiness: ReminderReadiness;
+  onEnable: () => void;
+}) {
+  const isChecking =
+    readiness.notification === "checking" ||
+    readiness.exactAlarm === "checking";
+  const isUnsupported =
+    readiness.notification === "unsupported" ||
+    readiness.exactAlarm === "unsupported";
+  const isReady =
+    readiness.notification === "granted" &&
+    readiness.exactAlarm === "granted";
+  const hasError =
+    readiness.notification === "error" || readiness.exactAlarm === "error";
+
+  let title = "正在检查提醒能力";
+  let copy = "训练仍可随时开始。";
+  if (isReady) {
+    title = "后台提醒已开启";
+    copy = "休息结束时会发送系统通知，并在前台播放声音与震动。";
+  } else if (isUnsupported) {
+    title = "浏览器前台提醒";
+    copy = "Chrome 预览会在页面打开时提醒；安装 APK 后可开启后台系统通知。";
+  } else if (hasError) {
+    title = "提醒状态暂时不可用";
+    copy = "训练记录不受影响；你仍可依靠前台倒计时。";
+  } else if (!isChecking) {
+    title = "后台提醒尚未开启";
+    copy = "开启系统通知和精确提醒，锁屏时也能掌握组间休息。";
+  }
+
+  return (
+    <section className="reminder-readiness js-screen-reveal" aria-label="休息提醒状态">
+      <BellRing size={19} aria-hidden="true" />
+      <div>
+        <strong>{title}</strong>
+        <p>{copy}</p>
+      </div>
+      {!isReady && !isUnsupported && !hasError ? (
+        <button
+          type="button"
+          disabled={isBusy || isChecking}
+          onClick={onEnable}
+        >
+          {isBusy ? "正在开启…" : "开启休息提醒"}
+        </button>
+      ) : null}
+    </section>
   );
 }
 

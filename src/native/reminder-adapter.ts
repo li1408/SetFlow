@@ -19,6 +19,8 @@ export interface ReminderScheduleRequest {
 export interface ReminderAdapter {
   checkPermission(): Promise<ReminderPermissionState>;
   requestPermission(): Promise<ReminderPermissionState>;
+  checkExactAlarmSetting(): Promise<ReminderPermissionState>;
+  openExactAlarmSetting(): Promise<ReminderPermissionState>;
   schedule(
     request: ReminderScheduleRequest,
   ): Promise<ReminderOperationResult>;

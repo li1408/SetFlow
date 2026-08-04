@@ -22,6 +22,8 @@ export type LocalNotificationsBridge = Pick<
   LocalNotificationsPlugin,
   | "checkPermissions"
   | "requestPermissions"
+  | "checkExactNotificationSetting"
+  | "changeExactNotificationSetting"
   | "createChannel"
   | "schedule"
   | "cancel"
@@ -44,6 +46,20 @@ export class CapacitorReminderAdapter implements ReminderAdapter {
   async requestPermission(): Promise<ReminderPermissionState> {
     if (!this.platform.isNativePlatform()) return "unsupported";
     return (await this.notifications.requestPermissions()).display;
+  }
+
+  async checkExactAlarmSetting(): Promise<ReminderPermissionState> {
+    if (!this.platform.isNativePlatform()) return "unsupported";
+    if (this.platform.getPlatform() !== "android") return "granted";
+    return (await this.notifications.checkExactNotificationSetting())
+      .exact_alarm;
+  }
+
+  async openExactAlarmSetting(): Promise<ReminderPermissionState> {
+    if (!this.platform.isNativePlatform()) return "unsupported";
+    if (this.platform.getPlatform() !== "android") return "granted";
+    return (await this.notifications.changeExactNotificationSetting())
+      .exact_alarm;
   }
 
   async schedule(
