@@ -42,6 +42,7 @@ describe("exerciseDefinitionSchema", () => {
     const baseExercise = {
       id: "bodyweight-squat",
       name: "徒手深蹲",
+      cue: "脚掌稳稳踩地，膝盖跟随脚尖方向下蹲。",
       difficulty: "beginner",
       movement: "squat",
       requiredEquipment: [],
@@ -66,6 +67,7 @@ describe("exerciseDefinitionSchema", () => {
     const result = exerciseDefinitionSchema.safeParse({
       id: "front-plank",
       name: "平板支撑",
+      cue: "肘在肩下，收紧臀腹并保持自然呼吸。",
       difficulty: "beginner",
       movement: "core",
       requiredEquipment: [],

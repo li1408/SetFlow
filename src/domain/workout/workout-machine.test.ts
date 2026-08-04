@@ -9,6 +9,7 @@ const snapshot: WorkoutPlanSnapshot = {
     {
       id: "exercise-1",
       name: "徒手深蹲",
+      cue: "脚掌稳稳踩地，膝盖跟随脚尖方向下蹲。",
       sets: 2,
       target: { kind: "reps", min: 8, max: 12, basis: "total" },
       restSeconds: 60,
@@ -16,6 +17,7 @@ const snapshot: WorkoutPlanSnapshot = {
     {
       id: "exercise-2",
       name: "平板支撑",
+      cue: "肘在肩下，收紧臀腹并保持自然呼吸。",
       sets: 1,
       target: {
         kind: "durationSeconds",

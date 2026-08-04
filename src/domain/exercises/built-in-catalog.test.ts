@@ -95,4 +95,15 @@ describe("builtInExerciseCatalog", () => {
       ),
     ).toBe(true);
   });
+
+  it("includes a concise movement cue that can be frozen into workout history", () => {
+    expect(
+      builtInExerciseCatalog.every(
+        (exercise) =>
+          typeof exercise.cue === "string" &&
+          exercise.cue.trim().length >= 8 &&
+          exercise.cue.length <= 48,
+      ),
+    ).toBe(true);
+  });
 });

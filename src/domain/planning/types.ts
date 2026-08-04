@@ -30,6 +30,7 @@ export type ExerciseMeasure = {
 export interface ExerciseDefinition {
   id: string;
   name: string;
+  cue: string;
   difficulty: ExperienceLevel;
   movement: MovementPattern;
   requiredEquipment: EquipmentId[];

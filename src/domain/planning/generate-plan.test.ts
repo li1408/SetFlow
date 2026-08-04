@@ -6,6 +6,7 @@ const catalog: ExerciseDefinition[] = [
   {
     id: "bodyweight-squat",
     name: "徒手深蹲",
+    cue: "脚掌稳稳踩地，膝盖跟随脚尖方向下蹲。",
     difficulty: "beginner",
     movement: "squat",
     requiredEquipment: [],
@@ -16,6 +17,7 @@ const catalog: ExerciseDefinition[] = [
   {
     id: "incline-push-up",
     name: "上斜俯卧撑",
+    cue: "身体保持直线，胸口靠近支撑面后推开。",
     difficulty: "beginner",
     movement: "push",
     requiredEquipment: [],
@@ -26,6 +28,7 @@ const catalog: ExerciseDefinition[] = [
   {
     id: "dead-bug",
     name: "死虫式",
+    cue: "腰背贴地，对侧手脚缓慢伸远后收回。",
     difficulty: "beginner",
     movement: "core",
     requiredEquipment: [],
@@ -36,6 +39,7 @@ const catalog: ExerciseDefinition[] = [
   {
     id: "dumbbell-row",
     name: "单臂哑铃划船",
+    cue: "背部保持平直，肘部贴身向髋部拉动。",
     difficulty: "beginner",
     movement: "pull",
     requiredEquipment: ["dumbbell"],

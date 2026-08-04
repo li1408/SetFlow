@@ -6,6 +6,7 @@ export interface WorkoutPlanSnapshot {
   exercises: Array<{
     id: string;
     name: string;
+    cue: string;
     sets: number;
     target: PlannedTarget;
     restSeconds: number;

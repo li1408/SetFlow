@@ -4,6 +4,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "bodyweight-squat",
     name: "徒手深蹲",
+    cue: "脚掌稳稳踩地，膝盖跟随脚尖方向下蹲。",
     difficulty: "beginner",
     movement: "squat",
     requiredEquipment: [],
@@ -14,6 +15,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "squat-pulse",
     name: "深蹲底部小幅起伏",
+    cue: "保持胸口打开，在深蹲底部小幅平稳起伏。",
     difficulty: "intermediate",
     movement: "squat",
     requiredEquipment: [],
@@ -24,6 +26,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "hip-hinge-reach",
     name: "徒手髋折叠前伸",
+    cue: "臀部向后送，背部保持平直再站起。",
     difficulty: "beginner",
     movement: "hinge",
     requiredEquipment: [],
@@ -34,6 +37,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "single-leg-glute-bridge",
     name: "单腿臀桥",
+    cue: "收紧腹部，用支撑腿臀部把髋推高。",
     difficulty: "intermediate",
     movement: "hinge",
     requiredEquipment: [],
@@ -44,6 +48,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "wall-push-up",
     name: "墙面俯卧撑",
+    cue: "身体保持一条直线，胸口靠近墙面再推开。",
     difficulty: "beginner",
     movement: "push",
     requiredEquipment: [],
@@ -54,6 +59,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "kneeling-push-up",
     name: "跪姿俯卧撑",
+    cue: "肩、髋与膝保持直线，肘部斜向后屈。",
     difficulty: "beginner",
     movement: "push",
     requiredEquipment: [],
@@ -64,6 +70,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "strict-push-up",
     name: "标准俯卧撑",
+    cue: "收紧核心，胸口整体下降后有力推起。",
     difficulty: "intermediate",
     movement: "push",
     requiredEquipment: [],
@@ -74,6 +81,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "low-bar-inverted-row",
     name: "低杠反向划船",
+    cue: "身体绷直，把胸口拉向横杠并慢慢放回。",
     difficulty: "beginner",
     movement: "pull",
     requiredEquipment: ["pull_up_bar"],
@@ -84,6 +92,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "resistance-band-row",
     name: "弹力带坐姿划船",
+    cue: "肩膀下沉，肘部贴近身体向后拉。",
     difficulty: "beginner",
     movement: "pull",
     requiredEquipment: ["resistance_band"],
@@ -94,6 +103,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "overhand-pull-up",
     name: "正握引体向上",
+    cue: "先下沉肩胛，再把胸口拉向横杠。",
     difficulty: "intermediate",
     movement: "pull",
     requiredEquipment: ["pull_up_bar"],
@@ -104,6 +114,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "alternating-reverse-lunge",
     name: "交替后撤弓步",
+    cue: "后脚平稳落地，前脚发力回到站姿。",
     difficulty: "beginner",
     movement: "lunge",
     requiredEquipment: [],
@@ -114,6 +125,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "stationary-split-squat",
     name: "原地分腿蹲",
+    cue: "双脚前后站稳，身体垂直下沉再起身。",
     difficulty: "intermediate",
     movement: "lunge",
     requiredEquipment: [],
@@ -124,6 +136,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "dead-bug-reach",
     name: "死虫式交替伸展",
+    cue: "腰背贴地，对侧手脚缓慢伸远后收回。",
     difficulty: "beginner",
     movement: "core",
     requiredEquipment: [],
@@ -134,6 +147,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "forearm-plank",
     name: "前臂平板支撑",
+    cue: "肘在肩下，收紧臀腹并保持自然呼吸。",
     difficulty: "beginner",
     movement: "core",
     requiredEquipment: [],
@@ -144,6 +158,7 @@ export const builtInExerciseCatalog: ExerciseDefinition[] = [
   {
     id: "side-plank",
     name: "侧向平板支撑",
+    cue: "肩肘对齐，髋部抬起让身体保持直线。",
     difficulty: "intermediate",
     movement: "core",
     requiredEquipment: [],
