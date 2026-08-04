@@ -1,6 +1,6 @@
 # SetFlow MVP 产品与技术规格
 
-状态：**待用户确认**
+状态：**已确认，进入实现**
 
 版本：0.1
 
@@ -262,7 +262,9 @@ async function completeSet(command: CompleteSetCommand): Promise<CompleteSetResu
 
 建议将工具链放在 `E:\Tools\SetFlowAndroid`，通过项目脚本设置临时环境变量，不修改系统全局 PATH。该安装会有较大下载，需随本规格一并获准。
 
-尚需一项兼容性信息：用户主手机的型号与 Android 版本；若暂时不知道，先按 Capacitor 支持范围 Android 7（API 24）及以上实现，最终以主手机真机结果为准。
+主验收设备为 **小米 15**。小米官方规格显示该机型出厂搭载 Xiaomi HyperOS 2；设备当前安装的 HyperOS/Android 版本将在连接 ADB 后直接读取。实现仍覆盖 Capacitor 支持范围 Android 7（API 24）及以上，最终以这台主手机的真机结果为准。
+
+小米专项验收还包括：通知开关、精确提醒能力、应用电池策略设为“无限制”、后台自启动，以及锁屏/熄屏/从最近任务划走后的提醒表现。应用会提供设备引导，但不会尝试绕过用户的系统设置。
 
 ## 14. 固定验证命令
 
@@ -295,7 +297,10 @@ android\app\build\outputs\apk\debug\app-debug.apk
 - [Android Auto Backup](https://developer.android.com/identity/data/autobackup)
 - [GSAP React 官方指南](https://gsap.com/resources/React/)
 - [GSAP 官方 skills 仓库](https://github.com/greensock/gsap-skills)
+- [小米 15 官方规格](https://www.mi.com/uk/product/xiaomi-15/specs/)
+- [小米后台自启动说明](https://www.mi.com/global/support/faq/details/KA-507611/)
+- [小米 15 后台电池策略说明](https://www.mi.com/global/support/faq/details/KA-538010/)
 
 ## 16. 批准方式
 
-确认本规格、实施计划与任务清单后，回复：`按此规格开始`。该回复同时授权在 `E:\Tools\SetFlowAndroid` 安装项目专用 JDK/Android SDK 以完成 APK 构建；若不希望现在下载工具链，请注明“先只做前端”。
+用户已确认先按本规格实现，并指定小米 15 为主验收设备。Android 工具链隔离安装于 `E:\Tools\SetFlowAndroid`，不修改系统全局 PATH；正式签名密钥仍在调试 APK 验收后另行确认。
