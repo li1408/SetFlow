@@ -73,12 +73,21 @@ export interface GeneratedPlanDraft {
     kind: "generated";
     ruleVersion: string;
   };
-  days: Array<{
-    ordinal: number;
-    name: string;
-    exercises: PlannedExerciseDraft[];
-  }>;
+  days: PlanDayDraft[];
 }
+
+export interface ManualPlanDraft {
+  source: { kind: "manual" };
+  days: PlanDayDraft[];
+}
+
+export interface PlanDayDraft {
+  ordinal: number;
+  name: string;
+  exercises: PlannedExerciseDraft[];
+}
+
+export type PlanDraft = GeneratedPlanDraft | ManualPlanDraft;
 
 export type GeneratePlanResult =
   | { ok: true; plan: GeneratedPlanDraft }

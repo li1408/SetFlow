@@ -1,4 +1,4 @@
-import type { GeneratedPlanDraft } from "../domain/planning/types";
+import type { PlanDraft } from "../domain/planning/types";
 import type { WorkoutSession } from "../domain/workout/types";
 
 export const DATABASE_SCHEMA_VERSION = 1;
@@ -46,7 +46,7 @@ export interface StoredReminderJob {
 export interface StoredPlan {
   id: string;
   name: string;
-  draft: GeneratedPlanDraft;
+  draft: PlanDraft;
   status: "active" | "archived";
   activeSlot?: "active";
   createdAt: number;

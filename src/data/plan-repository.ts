@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { generatedPlanDraftSchema } from "../domain/planning/schemas";
-import type { GeneratedPlanDraft } from "../domain/planning/types";
+import { planDraftSchema } from "../domain/planning/schemas";
+import type { PlanDraft } from "../domain/planning/types";
 import type { SetFlowDatabase } from "./database";
 import {
   DATABASE_SCHEMA_VERSION,
@@ -10,13 +10,13 @@ import {
 export interface SaveActivePlanInput {
   id: string;
   name: string;
-  draft: GeneratedPlanDraft;
+  draft: PlanDraft;
 }
 
 const saveActivePlanInputSchema = z.strictObject({
   id: z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
   name: z.string().trim().min(1).max(80),
-  draft: generatedPlanDraftSchema,
+  draft: planDraftSchema,
 });
 
 export class PlanRepository {
@@ -27,7 +27,7 @@ export class PlanRepository {
 
   async saveActive(input: SaveActivePlanInput): Promise<StoredPlan> {
     const validated = saveActivePlanInputSchema.parse(input);
-    const draft = validated.draft as GeneratedPlanDraft;
+    const draft = validated.draft as PlanDraft;
 
     return this.database.transaction("rw", this.database.plans, async () => {
       const active = await this.database.plans
@@ -67,7 +67,7 @@ export class PlanRepository {
 
     return {
       ...record,
-      draft: generatedPlanDraftSchema.parse(record.draft) as GeneratedPlanDraft,
+      draft: planDraftSchema.parse(record.draft) as PlanDraft,
     };
   }
 }

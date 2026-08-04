@@ -74,35 +74,32 @@ const plannedTargetSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export const generatedPlanDraftSchema = z
-  .strictObject({
-    source: z.strictObject({
-      kind: z.literal("generated"),
-      ruleVersion: z.string().min(1).max(32),
+const planDaysSchema = z
+  .array(
+    z.strictObject({
+      ordinal: z.number().int().positive().max(7),
+      name: z.string().trim().min(1).max(80),
+      exercises: z
+        .array(
+          z.strictObject({
+            exerciseId: z.string().min(1).max(128),
+            order: z.number().int().nonnegative(),
+            sets: z.number().int().min(1).max(20),
+            target: plannedTargetSchema,
+            restSeconds: z.number().int().min(0).max(600),
+          }),
+        )
+        .min(1)
+        .max(30),
     }),
-    days: z
-      .array(
-        z.strictObject({
-          ordinal: z.number().int().positive().max(7),
-          name: z.string().trim().min(1).max(80),
-          exercises: z
-            .array(
-              z.strictObject({
-                exerciseId: z.string().min(1).max(128),
-                order: z.number().int().nonnegative(),
-                sets: z.number().int().min(1).max(20),
-                target: plannedTargetSchema,
-                restSeconds: z.number().int().min(0).max(600),
-              }),
-            )
-            .min(1)
-            .max(30),
-        }),
-      )
-      .min(1)
-      .max(7),
-  })
-  .superRefine((draft, context) => {
+  )
+  .min(1)
+  .max(7);
+
+function validatePlanOrdering(
+  draft: { days: z.infer<typeof planDaysSchema> },
+  context: z.RefinementCtx,
+) {
     if (new Set(draft.days.map((day) => day.ordinal)).size !== draft.days.length) {
       context.addIssue({
         code: "custom",
@@ -129,4 +126,26 @@ export const generatedPlanDraftSchema = z
         });
       }
     });
-  });
+}
+
+export const generatedPlanDraftSchema = z
+  .strictObject({
+    source: z.strictObject({
+      kind: z.literal("generated"),
+      ruleVersion: z.string().min(1).max(32),
+    }),
+    days: planDaysSchema,
+  })
+  .superRefine(validatePlanOrdering);
+
+export const manualPlanDraftSchema = z
+  .strictObject({
+    source: z.strictObject({ kind: z.literal("manual") }),
+    days: planDaysSchema,
+  })
+  .superRefine(validatePlanOrdering);
+
+export const planDraftSchema = z.union([
+  generatedPlanDraftSchema,
+  manualPlanDraftSchema,
+]);

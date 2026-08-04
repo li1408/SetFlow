@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { GeneratedPlanDraft } from "../domain/planning/types";
+import type {
+  GeneratedPlanDraft,
+  PlanDraft,
+} from "../domain/planning/types";
 import { createWorkoutSession } from "../domain/workout/workout-machine";
 import { SetFlowDatabase } from "./database";
 import { PlanRepository } from "./plan-repository";
@@ -139,6 +142,27 @@ describe("PlanRepository", () => {
       }),
     ).rejects.toBeTruthy();
     expect(await database.plans.count()).toBe(0);
+  });
+
+  it("persists a manually assembled plan through the same boundary", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-manual-plan-${crypto.randomUUID()}`),
+    );
+    const plans = new PlanRepository(database, () => 1_000);
+    const manualDraft: PlanDraft = {
+      source: { kind: "manual" },
+      days: draft.days,
+    };
+
+    await plans.saveActive({
+      id: "manual-plan",
+      name: "我的手动计划",
+      draft: manualDraft,
+    });
+
+    expect(await plans.getActive()).toMatchObject({
+      draft: { source: { kind: "manual" } },
+    });
   });
 });
 
