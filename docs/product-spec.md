@@ -258,9 +258,9 @@ async function completeSet(command: CompleteSetCommand): Promise<CompleteSetResu
 
 ## 13. 当前环境与阻塞
 
-本机已有 Node 24、npm 11、pnpm 11 和两个可用 ADB，但没有完整 JDK、Android SDK、Build Tools 或 Android Platform。因此可以立即开发与验证前端，生成 APK 前必须补齐项目专用 Android 工具链。
+本机已有 Node 24、npm 11、pnpm 11 和可用 ADB。项目专用 Temurin JDK 21.0.12 与 Gradle 8.14.3 已安装到 `E:\Tools\SetFlowAndroid`，并已按发布方 SHA-256 校验；Capacitor Android 工程也已生成。当前仍缺 Android SDK、Build Tools 与 API 36 Platform，因此 APK 构建停在 Android SDK 许可确认边界。
 
-建议将工具链放在 `E:\Tools\SetFlowAndroid`，通过项目脚本设置临时环境变量，不修改系统全局 PATH。该安装会有较大下载，需随本规格一并获准。
+工具链固定放在 `E:\Tools\SetFlowAndroid`，由 `scripts\build-android-debug.ps1` 设置当前构建进程的临时环境变量，不修改系统全局 PATH。脚本不会安装 SDK 或接受许可；许可必须由用户本人明确确认。
 
 主验收设备为 **小米 15**。小米官方规格显示该机型出厂搭载 Xiaomi HyperOS 2；设备当前安装的 HyperOS/Android 版本将在连接 ADB 后直接读取。实现仍覆盖 Capacitor 支持范围 Android 7（API 24）及以上，最终以这台主手机的真机结果为准。
 
@@ -280,6 +280,8 @@ npx cap sync android
 D:\adb-fastboot\adb.exe install -r .\android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
+本机推荐直接执行 `npm run android:debug`；它使用已校验的隔离 Gradle，依次运行 Web build、Capacitor sync、Android test、`assembleDebug`，并在成功后打印 APK SHA-256。上面的 Gradle wrapper 命令保留为标准项目入口。
+
 预期 APK：
 
 ```text
@@ -295,6 +297,7 @@ android\app\build\outputs\apk\debug\app-debug.apk
 - [Android 通知权限](https://developer.android.com/develop/ui/views/notifications/notification-permission)
 - [Android 通知频道](https://developer.android.com/develop/ui/views/notifications/channels)
 - [Android Auto Backup](https://developer.android.com/identity/data/autobackup)
+- [Android sdkmanager 与许可](https://developer.android.com/tools/sdkmanager)
 - [GSAP React 官方指南](https://gsap.com/resources/React/)
 - [GSAP 官方 skills 仓库](https://github.com/greensock/gsap-skills)
 - [小米 15 官方规格](https://www.mi.com/uk/product/xiaomi-15/specs/)
@@ -303,4 +306,4 @@ android\app\build\outputs\apk\debug\app-debug.apk
 
 ## 16. 批准方式
 
-用户已确认先按本规格实现，并指定小米 15 为主验收设备。Android 工具链隔离安装于 `E:\Tools\SetFlowAndroid`，不修改系统全局 PATH；正式签名密钥仍在调试 APK 验收后另行确认。
+用户已确认先按本规格实现，并指定小米 15 为主验收设备。Android 工具链隔离安装于 `E:\Tools\SetFlowAndroid`，不修改系统全局 PATH；JDK 21 与 Gradle 已安装并校验，但用户尚未明确接受 Android SDK License，因此 SDK Platform/Build Tools/Platform Tools 未安装，APK 构建尚未开始。正式签名密钥仍在调试 APK 验收后另行确认。
