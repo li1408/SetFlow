@@ -1,0 +1,24 @@
+# Changelog
+
+SetFlow 的稳定体验节点使用语义化版本标签记录，APK 作为对应 GitHub Release 的附件保存。
+
+## [0.1.1] - 2026-08-09
+
+### Fixed
+
+- 避免 Android 软键盘改变 WebView 高度时重新触发页面入场动画，保持训练计划输入框焦点。
+- 为主 Activity 启用 `adjustResize`，让 WebView 正确适配软键盘占用的区域。
+
+### Verified
+
+- 93 项自动化测试、类型检查、ESLint 和生产构建通过。
+- Chrome 手机尺寸下验证训练天数输入、视口缩放和焦点保持。
+- Android 调试 APK 通过签名、ZipAlign 与合并清单检查。
+
+## [0.1.0] - 2026-08-08
+
+### Added
+
+- 本地规则生成和手动编辑训练计划。
+- 多训练日选择、训练进度恢复、逐组训练和休息提醒。
+- Android 本地通知、震动与调试 APK 构建流程。

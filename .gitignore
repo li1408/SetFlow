@@ -11,6 +11,11 @@ android/local.properties
 android/app/build/
 *.jks
 *.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+android/app/google-services.json
 *.apk
 *.aab
 .idea/

@@ -225,7 +225,7 @@ async function completeSet(command: CompleteSetCommand): Promise<CompleteSetResu
 
 - 手机 root、系统被攻破或设备已解锁后的攻击不在防护范围。
 - 首版无云备份；卸载、清除应用数据或手机损坏后数据无法恢复。
-- 首个交付为调试 APK；分享给朋友前再制作用户持有密钥的正式签名包。
+- 首个交付为调试 APK；`v0.1.1` 可在明确标注调试签名和已知限制的前提下供少量朋友体验。扩大分发或应用商店发布前，再制作用户持有密钥的正式签名包。
 
 ## 11. 验收标准
 
@@ -256,9 +256,9 @@ async function completeSet(command: CompleteSetCommand): Promise<CompleteSetResu
 - 外部视频、Workout.cool 动作 CSV、品牌图像或未经授权素材。
 - 首版自动训练进阶、穿戴设备、Health Connect。
 
-## 13. 当前环境与阻塞
+## 13. 当前环境与剩余验收
 
-本机已有 Node 24、npm 11、pnpm 11 和可用 ADB。项目专用 Temurin JDK 21.0.12 与 Gradle 8.14.3 已安装到 `E:\Tools\SetFlowAndroid`，并已按发布方 SHA-256 校验；Capacitor Android 工程也已生成。当前仍缺 Android SDK、Build Tools 与 API 36 Platform，因此 APK 构建停在 Android SDK 许可确认边界。
+本机已有 Node 24、npm 11、pnpm 11 和可用 ADB。用户已确认 Android SDK 许可；项目专用 Temurin JDK 21.0.12、Gradle 8.14.3、Android SDK、Build Tools 与 API 36 Platform 已安装到 `E:\Tools\SetFlowAndroid`。Capacitor Android 工程和调试 APK 均已成功构建，剩余重点是真机安装、升级保留数据以及后台、锁屏和提醒行为验收。
 
 工具链固定放在 `E:\Tools\SetFlowAndroid`，由 `scripts\build-android-debug.ps1` 设置当前构建进程的临时环境变量，不修改系统全局 PATH。脚本不会安装 SDK 或接受许可；许可必须由用户本人明确确认。
 
@@ -306,4 +306,4 @@ android\app\build\outputs\apk\debug\app-debug.apk
 
 ## 16. 批准方式
 
-用户已确认先按本规格实现，并指定小米 15 为主验收设备。Android 工具链隔离安装于 `E:\Tools\SetFlowAndroid`，不修改系统全局 PATH；JDK 21 与 Gradle 已安装并校验，但用户尚未明确接受 Android SDK License，因此 SDK Platform/Build Tools/Platform Tools 未安装，APK 构建尚未开始。正式签名密钥仍在调试 APK 验收后另行确认。
+用户已确认先按本规格实现，并指定小米 15 为主验收设备。Android 工具链隔离安装于 `E:\Tools\SetFlowAndroid`，不修改系统全局 PATH；Android SDK 许可已确认，SDK Platform、Build Tools、Platform Tools 与调试 APK 构建均已完成。正式签名密钥仍在调试 APK 验收后另行确认。

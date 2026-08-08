@@ -1,7 +1,16 @@
 {
   "name": "setflow",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "A local-first Android workout assistant focused on plans, set tracking, and rest reminders.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/li1408/SetFlow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/li1408/SetFlow/issues"
+  },
+  "homepage": "https://github.com/li1408/SetFlow#readme",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"

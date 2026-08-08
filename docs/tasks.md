@@ -1,6 +1,6 @@
 # SetFlow MVP 任务清单
 
-状态：**执行中（应用主体完成，Android SDK 许可与真机验收待处理）**
+状态：**公开体验中（应用主体与调试 APK 已完成，真机专项验收待处理）**
 
 ## A. 基线
 
@@ -58,7 +58,7 @@
 
 ## F. Android 提醒
 
-- [ ] 安装隔离的 Android SDK（JDK 21 与 Gradle 8.14.3 已安装并校验）。
+- [x] 安装并校验隔离的 JDK 21、Gradle 8.14.3、Android SDK、Build Tools 与 API 36 Platform。
 - [x] 添加 Android 平台并固定可复现环境脚本。
 - [x] 配置通知权限、精确提醒权限和频道。
 - [x] 实现通知调度、重排、取消和幂等恢复。
@@ -87,6 +87,6 @@
 - [x] Google Chrome 控制台、网络、可访问性与截图复核。
 - [ ] APK 安装、离线、冷启动、升级保留数据验证。
 - [x] 独立代码质量、安全与 Android 静态复核；P1 已修复。
-- [ ] 输出 APK、SHA-256、安装命令和已知限制。
+- [x] 输出 APK、SHA-256、安装说明和已知限制。
 
 首个交付文件：`android\app\build\outputs\apk\debug\app-debug.apk`。
