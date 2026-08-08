@@ -10,9 +10,43 @@ import type {
 import { App } from "./App";
 import type { AppServices } from "./services";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("App", () => {
+  it("does not subscribe screen reveals to keyboard-driven viewport height changes", async () => {
+    const mediaQueries: string[] = [];
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => {
+        mediaQueries.push(query);
+        return {
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        };
+      }),
+    );
+    const services = createServices();
+    const user = userEvent.setup();
+
+    render(<App services={services} />);
+    await waitFor(() => expect(services.plans.getActive).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "创建我的计划" }));
+    const daysPerWeek = screen.getByLabelText("每周训练天数");
+    await user.click(daysPerWeek);
+
+    expect(daysPerWeek).toHaveFocus();
+    expect(mediaQueries).not.toContain("(max-height: 700px)");
+  });
+
   it("presents the local-first primary action when no plan exists", async () => {
     const services = createServices();
     render(<App services={services} />);

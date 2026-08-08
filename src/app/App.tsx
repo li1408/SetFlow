@@ -165,10 +165,11 @@ export function App({ services = defaultAppServices }: AppProps) {
       if (screen === "workout") return;
 
       const media = gsap.matchMedia();
+      const compactViewport = window.innerHeight <= 700;
       media.add(
         {
           reduceMotion: "(prefers-reduced-motion: reduce)",
-          compact: "(max-height: 700px)",
+          allowMotion: "(prefers-reduced-motion: no-preference)",
         },
         (context) => {
           if (context.conditions?.reduceMotion) {
@@ -176,7 +177,9 @@ export function App({ services = defaultAppServices }: AppProps) {
             return;
           }
 
-          const distance = context.conditions?.compact ? 10 : 16;
+          if (!context.conditions?.allowMotion) return;
+
+          const distance = compactViewport ? 10 : 16;
           gsap
             .timeline({ defaults: { duration: 0.42, ease: "power2.out" } })
             .from(".js-brand", { autoAlpha: 0, y: -distance })
