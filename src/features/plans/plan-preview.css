@@ -1,0 +1,149 @@
+.plan-preview,
+.plan-preview__days,
+.plan-preview__exercises {
+  display: grid;
+  gap: var(--space-4, 1rem);
+}
+
+.plan-preview__header > *,
+.plan-preview__day > h4 {
+  margin: 0;
+}
+
+.plan-preview__header > p,
+.plan-preview__exercises > li > span {
+  color: var(--color-muted, #9ba394);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.plan-preview {
+  padding-top: var(--space-4, 1rem);
+  border-top: 1px solid var(--color-border, #343a30);
+}
+
+.plan-preview__days,
+.plan-preview__exercises {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-preview__day {
+  min-width: 0;
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.plan-preview__exercises {
+  gap: var(--space-3, 0.75rem);
+  margin-top: var(--space-3, 0.75rem);
+}
+
+.plan-preview__exercises > li {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1, 0.25rem);
+}
+
+.plan-preview__editor {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--color-surface, #191c17);
+}
+
+.plan-preview__editor legend {
+  max-width: calc(100% - var(--space-4, 1rem));
+  padding-inline: var(--space-2, 0.5rem);
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.plan-preview__editor-head {
+  display: flex;
+  min-width: 0;
+  margin-bottom: var(--space-3, 0.75rem);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+}
+
+.plan-preview__editor-head > span {
+  color: var(--color-muted, #9ba394);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.plan-preview__order-actions {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+}
+
+.plan-preview__order-actions button {
+  display: grid;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--color-text, #f3f5ec);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.plan-preview__order-actions button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.plan-preview__input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3, 0.75rem);
+  margin-top: var(--space-3, 0.75rem);
+}
+
+.plan-preview__field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2, 0.5rem);
+  color: var(--color-muted, #9ba394);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.plan-preview__field input,
+.plan-preview__field select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: var(--space-3, 0.75rem);
+  border: 1px solid var(--color-border, #343a30);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--color-surface-raised, #20241d);
+  color: var(--color-text, #f3f5ec);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.plan-preview__field--wide {
+  width: 100%;
+}
+
+@media (max-width: 21rem) {
+  .plan-preview__day {
+    padding-inline: var(--space-3, 0.75rem);
+  }
+
+  .plan-preview__input-grid {
+    grid-template-columns: 1fr;
+  }
+}

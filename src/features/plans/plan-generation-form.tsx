@@ -37,16 +37,21 @@ const equipmentOptions: Array<{ value: EquipmentId; label: string }> = [
 ];
 
 export interface PlanGenerationFormProps {
+  initialPlan?: GeneratedPlanDraft | null;
   onPlanGenerated: (plan: GeneratedPlanDraft) => void;
 }
 
 export function PlanGenerationForm({
+  initialPlan,
   onPlanGenerated,
 }: PlanGenerationFormProps) {
   const titleId = useId();
   const equipmentHelpId = useId();
+  const initialInput = initialPlan?.source.input;
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<GeneratedPlanDraft | null>(null);
+  const [preview, setPreview] = useState<GeneratedPlanDraft | null>(
+    () => initialPlan ?? null,
+  );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,7 +105,10 @@ export function PlanGenerationForm({
       >
         <label className="plan-generation-form__field">
           <span>训练目标</span>
-          <select name="goal" defaultValue="general_fitness">
+          <select
+            name="goal"
+            defaultValue={initialInput?.goal ?? "general_fitness"}
+          >
             {goalOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -117,14 +125,17 @@ export function PlanGenerationForm({
             min="2"
             max="6"
             step="1"
-            defaultValue="3"
+            defaultValue={initialInput?.daysPerWeek ?? 3}
             inputMode="numeric"
           />
         </label>
 
         <label className="plan-generation-form__field">
           <span>经验水平</span>
-          <select name="experience" defaultValue="beginner">
+          <select
+            name="experience"
+            defaultValue={initialInput?.experience ?? "beginner"}
+          >
             {experienceOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -146,6 +157,9 @@ export function PlanGenerationForm({
                   type="checkbox"
                   name="availableEquipment"
                   value={option.value}
+                  defaultChecked={initialInput?.availableEquipment.includes(
+                    option.value,
+                  )}
                 />
                 <span>{option.label}</span>
               </label>
@@ -161,7 +175,7 @@ export function PlanGenerationForm({
             min="15"
             max="90"
             step="5"
-            defaultValue="30"
+            defaultValue={initialInput?.sessionMinutes ?? 30}
             inputMode="numeric"
           />
         </label>
@@ -177,7 +191,15 @@ export function PlanGenerationForm({
         </button>
       </form>
 
-      {preview ? <PlanPreview plan={preview} /> : null}
+      {preview ? (
+        <PlanPreview
+          plan={preview}
+          onPlanChange={(plan) => {
+            setPreview(plan);
+            onPlanGenerated(plan);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

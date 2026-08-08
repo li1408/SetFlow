@@ -87,7 +87,14 @@ export function generatePlan(
   return {
     ok: true,
     plan: {
-      source: { kind: "generated", ruleVersion: RULE_VERSION },
+      source: {
+        kind: "generated",
+        ruleVersion: RULE_VERSION,
+        input: {
+          ...input,
+          availableEquipment: [...input.availableEquipment],
+        },
+      },
       days,
     },
   };

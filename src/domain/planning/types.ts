@@ -72,6 +72,7 @@ export interface GeneratedPlanDraft {
   source: {
     kind: "generated";
     ruleVersion: string;
+    input?: PlanGenerationInput;
   };
   days: PlanDayDraft[];
 }

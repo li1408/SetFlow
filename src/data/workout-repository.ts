@@ -45,14 +45,7 @@ export class WorkoutRepository {
   ) {}
 
   async create(session: WorkoutSession): Promise<void> {
-    const validatedSession = parseWorkoutSession(session);
-    if (
-      validatedSession.phase.kind !== "idle" ||
-      validatedSession.startedAt !== null ||
-      validatedSession.performedSets.length > 0
-    ) {
-      throw new InvalidInitialWorkoutError();
-    }
+    const validatedSession = validateFreshSession(session);
 
     await this.database.transaction("rw", this.database.workouts, async () => {
       const existing = await this.database.workouts
@@ -72,6 +65,39 @@ export class WorkoutRepository {
         schemaVersion: DATABASE_SCHEMA_VERSION,
       });
     });
+  }
+
+  async start(
+    session: WorkoutSession,
+    at: number,
+  ): Promise<WorkoutTransition> {
+    const validatedSession = validateFreshSession(session);
+    const startEvent = parseWorkoutEvent({ type: "start", at });
+    const transition = transitionWorkout(validatedSession, startEvent);
+    if (transition.kind !== "changed") {
+      throw new InvalidInitialWorkoutError();
+    }
+
+    await this.database.transaction("rw", this.database.workouts, async () => {
+      const existing = await this.database.workouts
+        .where("status")
+        .equals("active")
+        .first();
+      if (existing) throw new ActiveWorkoutExistsError();
+
+      const now = this.now();
+      await this.database.workouts.add({
+        id: transition.state.id,
+        session: transition.state,
+        status: "active",
+        activeSlot: "active",
+        createdAt: now,
+        updatedAt: now,
+        schemaVersion: DATABASE_SCHEMA_VERSION,
+      });
+    });
+
+    return transition;
   }
 
   async getActive(): Promise<WorkoutSession | null> {
@@ -101,6 +127,50 @@ export class WorkoutRepository {
         reminderActionRank(left.action) - reminderActionRank(right.action) ||
         left.createdAt - right.createdAt ||
         left.id.localeCompare(right.id),
+    );
+  }
+
+  async requeueActiveRestReminder(): Promise<void> {
+    await this.database.transaction(
+      "rw",
+      this.database.activeRestTimers,
+      this.database.reminderJobs,
+      async () => {
+        const activeRest = await this.database.activeRestTimers
+          .where("activeSlot")
+          .equals("active")
+          .first();
+        const now = this.now();
+        if (!activeRest || activeRest.endsAt <= now) return;
+
+        const id = reminderJobId(
+          activeRest.id,
+          activeRest.revision,
+          "schedule",
+        );
+        const existing = await this.database.reminderJobs.get(id);
+        if (existing) {
+          await this.database.reminderJobs.update(id, {
+            status: "pending",
+            updatedAt: now,
+          });
+          return;
+        }
+
+        await this.database.reminderJobs.add({
+          id,
+          timerId: activeRest.id,
+          workoutId: activeRest.workoutId,
+          revision: activeRest.revision,
+          action: "schedule",
+          notificationId: activeRest.notificationId,
+          endsAt: activeRest.endsAt,
+          status: "pending",
+          createdAt: now,
+          updatedAt: now,
+          schemaVersion: DATABASE_SCHEMA_VERSION,
+        });
+      },
     );
   }
 
@@ -135,6 +205,10 @@ export class WorkoutRepository {
 
   async recoverActive(at: number): Promise<WorkoutSession | null> {
     const active = await this.getActive();
+    if (active?.phase.kind === "idle") {
+      const transition = await this.apply(active.id, { type: "start", at });
+      return transition.state;
+    }
     if (active?.phase.kind !== "resting" || active.phase.timer.endsAt > at) {
       return active;
     }
@@ -329,6 +403,18 @@ export class WorkoutRepository {
       schemaVersion: DATABASE_SCHEMA_VERSION,
     });
   }
+}
+
+function validateFreshSession(session: WorkoutSession): WorkoutSession {
+  const validatedSession = parseWorkoutSession(session);
+  if (
+    validatedSession.phase.kind !== "idle" ||
+    validatedSession.startedAt !== null ||
+    validatedSession.performedSets.length > 0
+  ) {
+    throw new InvalidInitialWorkoutError();
+  }
+  return validatedSession;
 }
 
 function reminderJobId(

@@ -24,6 +24,8 @@ import "./workout-execution.css";
 
 gsap.registerPlugin(useGSAP);
 
+const MAX_AUTOMATIC_ELAPSED_RETRIES = 3;
+
 export interface WorkoutExecutionScreenProps {
   session: WorkoutSession;
   onEvent: (
@@ -43,6 +45,11 @@ export function WorkoutExecutionScreen({
   const pendingRef = useRef(false);
   const elapsedTimersRef = useRef(new Set<string>());
   const [isPending, setIsPending] = useState(false);
+  const [elapsedRetryState, setElapsedRetryState] = useState<{
+    timerKey: string;
+    count: number;
+    failed: boolean;
+  } | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const viewKey = getViewKey(session);
@@ -50,10 +57,21 @@ export function WorkoutExecutionScreen({
   const restTimerId = restTimer?.id;
   const restTimerRevision = restTimer?.revision;
   const restTimerEndsAt = restTimer?.endsAt;
+  const currentRestTimerKey = restTimer
+    ? `${restTimer.id}:${restTimer.revision}`
+    : null;
+  const elapsedRetryCount =
+    elapsedRetryState?.timerKey === currentRestTimerKey
+      ? elapsedRetryState.count
+      : 0;
+  const hasElapsedPersistenceFailure =
+    currentRestTimerKey !== null &&
+    elapsedRetryState?.timerKey === currentRestTimerKey &&
+    elapsedRetryState.failed;
 
   const dispatch = useCallback(
     async (event: WorkoutEvent, successMessage: string) => {
-      if (pendingRef.current) return;
+      if (pendingRef.current) return false;
 
       pendingRef.current = true;
       setIsPending(true);
@@ -68,8 +86,10 @@ export function WorkoutExecutionScreen({
         } else {
           setAnnouncement(successMessage);
         }
+        return true;
       } catch {
         setAnnouncement("操作失败，请重试。");
+        return false;
       } finally {
         pendingRef.current = false;
         setIsPending(false);
@@ -110,9 +130,12 @@ export function WorkoutExecutionScreen({
     }
 
     const timerKey = `${session.phase.timer.id}:${session.phase.timer.revision}`;
+    if (hasElapsedPersistenceFailure) return;
     if (elapsedTimersRef.current.has(timerKey)) return;
     elapsedTimersRef.current.add(timerKey);
 
+    let cancelled = false;
+    let retryTimeoutId: number | undefined;
     void dispatch(
       {
         type: "rest_elapsed",
@@ -121,8 +144,52 @@ export function WorkoutExecutionScreen({
         at: Date.now(),
       },
       "休息结束，下一组已准备。",
-    );
-  }, [dispatch, remainingMilliseconds, session.phase]);
+    ).then((wasHandled) => {
+      if (wasHandled || cancelled) return;
+      elapsedTimersRef.current.delete(timerKey);
+      if (elapsedRetryCount >= MAX_AUTOMATIC_ELAPSED_RETRIES) {
+        setElapsedRetryState({
+          timerKey,
+          count: elapsedRetryCount,
+          failed: true,
+        });
+        setAnnouncement("休息已结束，但训练进度尚未保存。");
+        return;
+      }
+      const retryDelay = 1_000 * 2 ** elapsedRetryCount;
+      retryTimeoutId = window.setTimeout(
+        () =>
+          setElapsedRetryState({
+            timerKey,
+            count: elapsedRetryCount + 1,
+            failed: false,
+          }),
+        retryDelay,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      if (retryTimeoutId !== undefined) window.clearTimeout(retryTimeoutId);
+    };
+  }, [
+    dispatch,
+    elapsedRetryCount,
+    hasElapsedPersistenceFailure,
+    remainingMilliseconds,
+    session.phase,
+  ]);
+
+  function retryElapsedPersistence() {
+    if (!currentRestTimerKey || isPending) return;
+    elapsedTimersRef.current.delete(currentRestTimerKey);
+    setElapsedRetryState({
+      timerKey: currentRestTimerKey,
+      count: 0,
+      failed: false,
+    });
+    setAnnouncement("正在重试保存训练进度…");
+  }
 
   useGSAP(
     () => {
@@ -275,6 +342,21 @@ export function WorkoutExecutionScreen({
       <p className="workout-live-region" role="status" aria-atomic="true">
         {announcement}
       </p>
+      {hasElapsedPersistenceFailure ? (
+        <div className="workout-persistence-alert" role="alert">
+          <div>
+            <strong>休息已经结束，但训练进度暂时无法保存</strong>
+            <p>请保留此页面并重试；本次训练不会被自动跳过。</p>
+          </div>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={retryElapsedPersistence}
+          >
+            重试保存
+          </button>
+        </div>
+      ) : null}
       <div ref={stageRef} className="workout-stage">
         {stage}
       </div>

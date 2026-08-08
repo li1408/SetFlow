@@ -133,6 +133,7 @@ export const generatedPlanDraftSchema = z
     source: z.strictObject({
       kind: z.literal("generated"),
       ruleVersion: z.string().min(1).max(32),
+      input: planGenerationInputSchema.optional(),
     }),
     days: planDaysSchema,
   })

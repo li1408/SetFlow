@@ -192,6 +192,64 @@ describe("WorkoutRepository", () => {
     ]);
   });
 
+  it("recovers a legacy idle active record by starting it", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-idle-recovery-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 4_000);
+    await repository.create(createWorkoutSession("session-1", snapshot));
+
+    const recovered = await repository.recoverActive(4_000);
+
+    expect(recovered).toMatchObject({
+      id: "session-1",
+      startedAt: 4_000,
+      phase: {
+        kind: "active_set",
+        position: { exerciseIndex: 0, setIndex: 0 },
+      },
+    });
+  });
+
+  it("requeues the active rest after the operating system loses its alarm", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-rest-requeue-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 10_000);
+    await createRestingWorkout(repository);
+    const original = (await repository.listReminderJobs())[0]!;
+    await repository.markReminderApplied({ jobId: original.id });
+    expect(await repository.listReminderJobs()).toEqual([]);
+
+    await repository.requeueActiveRestReminder();
+
+    expect(await repository.listReminderJobs()).toEqual([
+      expect.objectContaining({
+        id: original.id,
+        timerId: "rest-1",
+        revision: 0,
+        action: "schedule",
+        status: "pending",
+      }),
+    ]);
+  });
+
+  it("does not requeue a reminder whose persisted rest already expired", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-expired-requeue-${crypto.randomUUID()}`),
+    );
+    let now = 10_000;
+    const repository = new WorkoutRepository(database, () => now);
+    await createRestingWorkout(repository);
+    const original = (await repository.listReminderJobs())[0]!;
+    await repository.markReminderApplied({ jobId: original.id });
+    now = 70_000;
+
+    await repository.requeueActiveRestReminder();
+
+    expect(await repository.listReminderJobs()).toEqual([]);
+  });
+
   it("rolls back the workout when the active-rest invariant is violated", async () => {
     const database = track(
       new SetFlowDatabase(`setflow-rollback-${crypto.randomUUID()}`),
@@ -243,6 +301,30 @@ describe("WorkoutRepository", () => {
       repository.create(createWorkoutSession("session-2", snapshot)),
     ).rejects.toBeInstanceOf(ActiveWorkoutExistsError);
     expect((await repository.getActive())?.id).toBe("session-1");
+  });
+
+  it("creates and starts a workout in one atomic repository operation", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-atomic-start-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 1_000);
+    const idle = createWorkoutSession("session-1", snapshot);
+
+    const transition = await repository.start(idle, 750);
+
+    expect(transition).toMatchObject({
+      kind: "changed",
+      state: {
+        id: "session-1",
+        startedAt: 750,
+        phase: {
+          kind: "active_set",
+          position: { exerciseIndex: 0, setIndex: 0 },
+        },
+      },
+    });
+    expect(await repository.getActive()).toEqual(transition.state);
+    expect(await database.workouts.count()).toBe(1);
   });
 
   it("rejects non-fresh sessions when creating an active workout", async () => {

@@ -58,6 +58,7 @@ describe("ReminderCoordinator", () => {
       revision: 0,
     });
     const repository: ReminderJobRepository = {
+      requeueActiveRestReminder: async () => undefined,
       listReminderJobs: async () => [staleSchedule],
       markReminderApplied: async ({ jobId }) => {
         calls.push(`ack:${jobId}`);
@@ -102,6 +103,91 @@ describe("ReminderCoordinator", () => {
     expect(result.appliedJobIds).toEqual([]);
     expect(result.failures).toEqual([
       { jobId: "rest-2:0:schedule", stage: "apply" },
+    ]);
+  });
+
+  it("serializes overlapping flushes so a stale acknowledgement cannot cancel a live reminder", async () => {
+    const calls: string[] = [];
+    const schedule = reminderJob({
+      id: "rest-3:0:schedule",
+      action: "schedule",
+      notificationId: 300,
+      endsAt: 120_000,
+      revision: 0,
+    });
+    const repository = fakeRepository([schedule], calls);
+    const coordinator = new ReminderCoordinator(
+      repository,
+      new FakeReminderAdapter(calls),
+    );
+
+    const [first, second] = await Promise.all([
+      coordinator.flush(),
+      coordinator.flush(),
+    ]);
+
+    expect(calls).toEqual([
+      "schedule:300:120000",
+      "ack:rest-3:0:schedule",
+    ]);
+    expect(first.appliedJobIds).toEqual(["rest-3:0:schedule"]);
+    expect(second.appliedJobIds).toEqual([]);
+    expect(second.failures).toEqual([]);
+  });
+
+  it("runs a queued follow-up flush for jobs added during an active flush", async () => {
+    const calls: string[] = [];
+    const lateSchedule = reminderJob({
+      id: "rest-4:0:schedule",
+      action: "schedule",
+      notificationId: 400,
+      endsAt: 150_000,
+      revision: 0,
+    });
+    let jobs: StoredReminderJob[] = [];
+    let releaseFirstList: () => void = () => undefined;
+    let firstListStarted: () => void = () => undefined;
+    const listStarted = new Promise<void>((resolve) => {
+      firstListStarted = resolve;
+    });
+    const firstListRelease = new Promise<void>((resolve) => {
+      releaseFirstList = resolve;
+    });
+    let listCount = 0;
+    const repository: ReminderJobRepository = {
+      requeueActiveRestReminder: async () => undefined,
+      listReminderJobs: async () => {
+        listCount += 1;
+        if (listCount === 1) {
+          const snapshot = [...jobs];
+          firstListStarted();
+          await firstListRelease;
+          return snapshot;
+        }
+        return [...jobs];
+      },
+      markReminderApplied: async ({ jobId }) => {
+        jobs = jobs.filter((job) => job.id !== jobId);
+        calls.push(`ack:${jobId}`);
+        return { applied: true };
+      },
+    };
+    const coordinator = new ReminderCoordinator(
+      repository,
+      new FakeReminderAdapter(calls),
+    );
+
+    const first = coordinator.flush();
+    await listStarted;
+    jobs = [lateSchedule];
+    const second = coordinator.flush();
+    releaseFirstList();
+    await Promise.all([first, second]);
+
+    expect(listCount).toBe(2);
+    expect(calls).toEqual([
+      "schedule:400:150000",
+      "ack:rest-4:0:schedule",
     ]);
   });
 });
@@ -150,9 +236,13 @@ function fakeRepository(
   jobs: StoredReminderJob[],
   calls: string[],
 ): ReminderJobRepository {
+  const acknowledgedJobIds = new Set<string>();
   return {
-    listReminderJobs: async () => jobs,
+    requeueActiveRestReminder: async () => undefined,
+    listReminderJobs: async () =>
+      jobs.filter((job) => !acknowledgedJobIds.has(job.id)),
     markReminderApplied: async ({ jobId }) => {
+      acknowledgedJobIds.add(jobId);
       calls.push(`ack:${jobId}`);
       return { applied: true };
     },

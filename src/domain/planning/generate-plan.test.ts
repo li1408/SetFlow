@@ -65,6 +65,11 @@ describe("generatePlan", () => {
     expect(forward).toEqual(reversed);
     expect(forward.ok).toBe(true);
     if (forward.ok) {
+      expect(forward.plan.source.input).toEqual(input);
+      expect(forward.plan.source.input).not.toBe(input);
+      expect(forward.plan.source.input!.availableEquipment).not.toBe(
+        input.availableEquipment,
+      );
       expect(forward.plan.days).toHaveLength(3);
       expect(forward.plan.days[0]?.exercises.length).toBeGreaterThan(0);
     }

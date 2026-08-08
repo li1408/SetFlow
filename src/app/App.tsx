@@ -40,6 +40,7 @@ gsap.registerPlugin(useGSAP);
 
 type AppScreen = "home" | "plan-builder" | "today" | "workout";
 type ReminderUiState = ReminderPermissionState | "checking" | "error";
+type ReminderDeliveryState = "idle" | "syncing" | "ready" | "degraded";
 
 interface ReminderReadiness {
   notification: ReminderUiState;
@@ -59,7 +60,9 @@ export function App({ services = defaultAppServices }: AppProps) {
   const [screen, setScreen] = useState<AppScreen>("home");
   const [activePlan, setActivePlan] = useState<StoredPlan | null>(null);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [workout, setWorkout] = useState<WorkoutSession | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [isReminderBusy, setIsReminderBusy] = useState(false);
   const [reminderReadiness, setReminderReadiness] =
@@ -67,6 +70,8 @@ export function App({ services = defaultAppServices }: AppProps) {
       notification: "checking",
       exactAlarm: "checking",
     });
+  const [reminderDelivery, setReminderDelivery] =
+    useState<ReminderDeliveryState>("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,11 +85,18 @@ export function App({ services = defaultAppServices }: AppProps) {
         if (ignore) return;
         setActivePlan(plan);
         if (activeWorkout) {
+          if (plan) {
+            const recoveredDayIndex = plan.draft.days.findIndex(
+              (day) => day.name === activeWorkout.snapshot.planName,
+            );
+            setSelectedDayIndex(Math.max(0, recoveredDayIndex));
+          }
           setWorkout(activeWorkout);
           setScreen("workout");
         } else if (plan) {
           setScreen("today");
         }
+        setHasHydrated(true);
       })
       .catch(() => {
         if (!ignore) {
@@ -98,30 +110,55 @@ export function App({ services = defaultAppServices }: AppProps) {
   }, [services]);
 
   useEffect(() => {
-    if (screen !== "today" || !activePlan) return;
+    if (!hasHydrated) return;
     let ignore = false;
 
-    void Promise.all([
-      services.reminders.checkPermission(),
-      services.reminders.checkExactAlarmSetting(),
-    ])
-      .then(([notification, exactAlarm]) => {
+    async function refreshReminders() {
+      try {
+        const [notification, exactAlarm] = await Promise.all([
+          services.reminders.checkPermission(),
+          services.reminders.checkExactAlarmSetting(),
+        ]);
         if (ignore) return;
         setReminderReadiness({ notification, exactAlarm });
-        if (notification === "granted" && exactAlarm === "granted") {
-          void services.reminders.flush().catch(() => undefined);
+        if (notification !== "granted" || exactAlarm !== "granted") {
+          setReminderDelivery("idle");
+          return;
         }
-      })
-      .catch(() => {
+
+        setReminderDelivery("syncing");
+        const result = await services.reminders.flush();
+        if (!ignore) {
+          setReminderDelivery(
+            hasReminderSyncIssues(result) ? "degraded" : "ready",
+          );
+        }
+      } catch {
         if (!ignore) {
           setReminderReadiness({ notification: "error", exactAlarm: "error" });
+          setReminderDelivery("degraded");
         }
-      });
+      }
+    }
+
+    void refreshReminders();
+    let removeForegroundListener: (() => void | Promise<void>) | undefined;
+    void services.lifecycle
+      .onForeground(() => void refreshReminders())
+      .then((remove) => {
+        if (ignore) {
+          void remove();
+        } else {
+          removeForegroundListener = remove;
+        }
+      })
+      .catch(() => undefined);
 
     return () => {
       ignore = true;
+      void removeForegroundListener?.();
     };
-  }, [activePlan, screen, services]);
+  }, [hasHydrated, services]);
 
   useGSAP(
     () => {
@@ -174,6 +211,7 @@ export function App({ services = defaultAppServices }: AppProps) {
       });
       setActivePlan(plan);
       setPlanDraft(null);
+      setSelectedDayIndex(0);
       setScreen("today");
     } catch {
       setError("计划未能保存，请重试。你的输入仍保留在本页。");
@@ -187,13 +225,9 @@ export function App({ services = defaultAppServices }: AppProps) {
     setIsBusy(true);
     setError(null);
     try {
-      const snapshot = snapshotFromPlan(activePlan);
+      const snapshot = snapshotFromPlan(activePlan, selectedDayIndex);
       const session = createWorkoutSession(services.createId(), snapshot);
-      await services.workouts.create(session);
-      const transition = await services.workouts.apply(session.id, {
-        type: "start",
-        at: services.now(),
-      });
+      const transition = await services.workouts.start(session, services.now());
       if (transition.kind !== "changed") {
         throw new Error("Workout did not start");
       }
@@ -222,10 +256,17 @@ export function App({ services = defaultAppServices }: AppProps) {
 
       setReminderReadiness({ notification, exactAlarm });
       if (notification === "granted" && exactAlarm === "granted") {
-        await services.reminders.flush();
+        setReminderDelivery("syncing");
+        const result = await services.reminders.flush();
+        setReminderDelivery(
+          hasReminderSyncIssues(result) ? "degraded" : "ready",
+        );
+      } else {
+        setReminderDelivery("idle");
       }
     } catch {
       setReminderReadiness({ notification: "error", exactAlarm: "error" });
+      setReminderDelivery("degraded");
     } finally {
       setIsReminderBusy(false);
     }
@@ -245,7 +286,14 @@ export function App({ services = defaultAppServices }: AppProps) {
         reminderReadiness.notification === "granted" &&
         reminderReadiness.exactAlarm === "granted"
       ) {
-        void services.reminders.flush().catch(() => undefined);
+        void services.reminders
+          .flush()
+          .then((result) =>
+            setReminderDelivery(
+              hasReminderSyncIssues(result) ? "degraded" : "ready",
+            ),
+          )
+          .catch(() => setReminderDelivery("degraded"));
       }
     }
     return transition;
@@ -305,13 +353,16 @@ export function App({ services = defaultAppServices }: AppProps) {
                 plan={activePlan}
                 isBusy={isBusy}
                 isReminderBusy={isReminderBusy}
+                reminderDelivery={reminderDelivery}
                 reminderReadiness={reminderReadiness}
+                selectedDayIndex={selectedDayIndex}
                 onEdit={() => {
                   setPlanDraft(null);
                   setScreen("plan-builder");
                 }}
-                onStart={() => void startWorkout()}
                 onEnableReminders={() => void enableReminders()}
+                onSelectDay={setSelectedDayIndex}
+                onStart={() => void startWorkout()}
               />
             ) : null}
           </main>
@@ -407,6 +458,11 @@ function PlanBuilderScreen({
   onSave: () => void;
 }) {
   const [mode, setMode] = useState<PlanDraft["source"]["kind"]>(initialMode);
+  const generatedDraft = isGeneratedPlanDraft(draft)
+    ? draft
+    : isGeneratedPlanDraft(existingDraft)
+      ? existingDraft
+      : null;
 
   return (
     <div className="flow-screen">
@@ -445,7 +501,10 @@ function PlanBuilderScreen({
           id="generated-plan-panel"
           role="tabpanel"
         >
-          <PlanGenerationForm onPlanGenerated={onGenerated} />
+          <PlanGenerationForm
+            initialPlan={generatedDraft}
+            onPlanGenerated={onGenerated}
+          />
         </div>
       ) : (
         <div
@@ -487,28 +546,59 @@ function isManualPlanDraft(
   return draft?.source.kind === "manual";
 }
 
+function isGeneratedPlanDraft(
+  draft: PlanDraft | null,
+): draft is GeneratedPlanDraft {
+  return draft?.source.kind === "generated";
+}
+
 function TodayScreen({
   plan,
   isBusy,
   isReminderBusy,
+  reminderDelivery,
   reminderReadiness,
+  selectedDayIndex,
   onEdit,
   onEnableReminders,
+  onSelectDay,
   onStart,
 }: {
   plan: StoredPlan;
   isBusy: boolean;
   isReminderBusy: boolean;
+  reminderDelivery: ReminderDeliveryState;
   reminderReadiness: ReminderReadiness;
+  selectedDayIndex: number;
   onEdit: () => void;
   onEnableReminders: () => void;
+  onSelectDay: (dayIndex: number) => void;
   onStart: () => void;
 }) {
-  const day = plan.draft.days[0]!;
+  const safeDayIndex = plan.draft.days[selectedDayIndex] ? selectedDayIndex : 0;
+  const day = plan.draft.days[safeDayIndex]!;
   const estimatedMinutes = estimateMinutes(day.exercises);
 
   return (
     <div className="today-screen">
+      {plan.draft.days.length > 1 ? (
+        <label className="today-day-picker js-screen-reveal">
+          <span>选择训练日</span>
+          <select
+            value={safeDayIndex}
+            onChange={(event) =>
+              onSelectDay(Number(event.currentTarget.value))
+            }
+          >
+            {plan.draft.days.map((planDay, dayIndex) => (
+              <option key={planDay.ordinal} value={dayIndex}>
+                第 {planDay.ordinal} 天 · {planDay.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
       <section className="today-heading js-screen-reveal" aria-labelledby="today-plan-title">
         <p className="eyebrow">
           <CalendarDays size={14} aria-hidden="true" />
@@ -542,6 +632,7 @@ function TodayScreen({
       </ol>
 
       <ReminderReadinessCard
+        delivery={reminderDelivery}
         isBusy={isReminderBusy}
         readiness={reminderReadiness}
         onEnable={onEnableReminders}
@@ -566,29 +657,37 @@ function TodayScreen({
 }
 
 function ReminderReadinessCard({
+  delivery,
   isBusy,
   readiness,
   onEnable,
 }: {
+  delivery: ReminderDeliveryState;
   isBusy: boolean;
   readiness: ReminderReadiness;
   onEnable: () => void;
 }) {
   const isChecking =
     readiness.notification === "checking" ||
-    readiness.exactAlarm === "checking";
+    readiness.exactAlarm === "checking" ||
+    delivery === "syncing";
   const isUnsupported =
     readiness.notification === "unsupported" ||
     readiness.exactAlarm === "unsupported";
   const isReady =
     readiness.notification === "granted" &&
-    readiness.exactAlarm === "granted";
+    readiness.exactAlarm === "granted" &&
+    delivery === "ready";
   const hasError =
     readiness.notification === "error" || readiness.exactAlarm === "error";
+  const isDegraded = delivery === "degraded";
 
   let title = "正在检查提醒能力";
   let copy = "训练仍可随时开始。";
-  if (isReady) {
+  if (isDegraded && !isUnsupported) {
+    title = "后台提醒需要重试";
+    copy = "系统提醒本次未能安排；前台倒计时仍可用，稍后可重新同步。";
+  } else if (isReady) {
     title = "后台提醒已开启";
     copy = "休息结束时会发送系统通知，并在前台播放声音与震动。";
   } else if (isUnsupported) {
@@ -609,21 +708,28 @@ function ReminderReadinessCard({
         <strong>{title}</strong>
         <p>{copy}</p>
       </div>
-      {!isReady && !isUnsupported && !hasError ? (
+      {!isReady && !isUnsupported ? (
         <button
           type="button"
           disabled={isBusy || isChecking}
           onClick={onEnable}
         >
-          {isBusy ? "正在开启…" : "开启休息提醒"}
+          {isBusy
+            ? "正在处理…"
+            : isDegraded || hasError
+              ? "重试提醒"
+              : "开启休息提醒"}
         </button>
       ) : null}
     </section>
   );
 }
 
-function snapshotFromPlan(plan: StoredPlan): WorkoutPlanSnapshot {
-  const day = plan.draft.days[0];
+function snapshotFromPlan(
+  plan: StoredPlan,
+  dayIndex: number,
+): WorkoutPlanSnapshot {
+  const day = plan.draft.days[dayIndex];
   if (!day) throw new Error("Plan has no workout day");
 
   const exercises = day.exercises.map((plannedExercise) => {
@@ -664,4 +770,10 @@ function formatTarget(target: PlannedTarget): string {
   return target.kind === "reps"
     ? `${side}${target.min}–${target.max} 次`
     : `${side}${target.seconds} 秒`;
+}
+
+function hasReminderSyncIssues(
+  result: Awaited<ReturnType<AppServices["reminders"]["flush"]>>,
+): boolean {
+  return result.failures.length > 0 || result.unsupportedJobIds.length > 0;
 }

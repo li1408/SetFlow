@@ -154,6 +154,76 @@ describe("WorkoutExecutionScreen", () => {
     expect(onEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("retries an elapsed rest after a transient persistence failure", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
+    const session = makeRestingSession(10_400);
+    const onEvent = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("temporary IndexedDB failure"))
+      .mockImplementation(() => noop(session));
+
+    render(<WorkoutExecutionScreen session={session} onEvent={onEvent} />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("操作失败，请重试。")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+    });
+    expect(onEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops automatic elapsed retries and offers a visible manual retry", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
+    const session = makeRestingSession(10_400);
+    const onEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("persistent IndexedDB failure"));
+
+    render(<WorkoutExecutionScreen session={session} onEvent={onEvent} />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2_000);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(4_000);
+      await Promise.resolve();
+    });
+
+    expect(onEvent).toHaveBeenCalledTimes(4);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "休息已经结束，但训练进度暂时无法保存",
+    );
+    const retryButton = screen.getByRole("button", { name: "重试保存" });
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+      await Promise.resolve();
+    });
+    expect(onEvent).toHaveBeenCalledTimes(4);
+
+    onEvent.mockImplementation(() => noop(session));
+    fireEvent.click(retryButton);
+    await act(async () => Promise.resolve());
+    expect(onEvent).toHaveBeenCalledTimes(5);
+  });
+
   it("requires an explicit action before activating the next set", async () => {
     const session = makeActiveSession();
     session.phase = {

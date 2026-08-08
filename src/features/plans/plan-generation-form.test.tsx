@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { builtInExerciseCatalog } from "../../domain/exercises/built-in-catalog";
+import { generatePlan } from "../../domain/planning/generate-plan";
 import { PlanGenerationForm } from "./plan-generation-form";
 
 afterEach(cleanup);
@@ -58,6 +60,50 @@ describe("PlanGenerationForm", () => {
     expect(screen.getByLabelText("单杠")).toBeChecked();
     expect(onPlanGenerated).toHaveBeenCalledTimes(1);
     expect(onPlanGenerated.mock.calls[0]?.[0].days).toHaveLength(4);
+  });
+
+  it("restores the inputs that produced an existing generated plan", async () => {
+    const user = userEvent.setup();
+    const generated = generatePlan(
+      {
+        goal: "strength",
+        daysPerWeek: 4,
+        experience: "intermediate",
+        availableEquipment: ["pull_up_bar", "dumbbell"],
+        sessionMinutes: 45,
+      },
+      builtInExerciseCatalog,
+    );
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+
+    const onPlanGenerated = vi.fn();
+    render(
+      <PlanGenerationForm
+        initialPlan={generated.plan}
+        onPlanGenerated={onPlanGenerated}
+      />,
+    );
+
+    expect(screen.getByLabelText("训练目标")).toHaveValue("strength");
+    expect(screen.getByLabelText("每周训练天数")).toHaveValue(4);
+    expect(screen.getByLabelText("经验水平")).toHaveValue("intermediate");
+    expect(screen.getByLabelText("单杠")).toBeChecked();
+    expect(screen.getByLabelText("哑铃")).toBeChecked();
+    expect(screen.getByLabelText("单次训练时长（分钟）")).toHaveValue(45);
+
+    await user.click(screen.getByRole("button", { name: "生成离线计划" }));
+    const regenerated = onPlanGenerated.mock.calls[0]?.[0];
+    expect(regenerated?.source.input).toMatchObject({
+      goal: "strength",
+      daysPerWeek: 4,
+      experience: "intermediate",
+      sessionMinutes: 45,
+    });
+    expect(regenerated?.source.input?.availableEquipment).toHaveLength(2);
+    expect(regenerated?.source.input?.availableEquipment).toEqual(
+      expect.arrayContaining(["pull_up_bar", "dumbbell"]),
+    );
   });
 
   it("shows a visible error and does not call back for invalid input", () => {

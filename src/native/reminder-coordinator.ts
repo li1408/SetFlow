@@ -8,7 +8,9 @@ import type {
 
 export type ReminderJobRepository = Pick<
   WorkoutRepository,
-  "listReminderJobs" | "markReminderApplied"
+  | "listReminderJobs"
+  | "markReminderApplied"
+  | "requeueActiveRestReminder"
 >;
 
 export interface ReminderSyncFailure {
@@ -25,13 +27,28 @@ export interface ReminderSyncResult {
 }
 
 export class ReminderCoordinator {
+  private flushQueue: Promise<void> = Promise.resolve();
+
   constructor(
     private readonly repository: ReminderJobRepository,
     private readonly adapter: ReminderAdapter,
   ) {}
 
-  async flush(): Promise<ReminderSyncResult> {
+  flush(): Promise<ReminderSyncResult> {
+    const operation = this.flushQueue.then(
+      () => this.flushOnce(),
+      () => this.flushOnce(),
+    );
+    this.flushQueue = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+
+  private async flushOnce(): Promise<ReminderSyncResult> {
     const result = emptyResult();
+    await this.repository.requeueActiveRestReminder();
     const jobs = prioritizeCancellations(
       await this.repository.listReminderJobs(),
     );
