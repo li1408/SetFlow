@@ -15,7 +15,7 @@
     "coverage": "vitest run --coverage",
     "lint": "eslint .",
     "android:sync": "npm run build && cap sync android",
-    "android:debug": "npm run android:sync && cd android && gradlew.bat assembleDebug"
+    "android:debug": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android-debug.ps1"
   },
   "dependencies": {
     "@capacitor/android": "8.5.0",
