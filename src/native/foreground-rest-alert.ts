@@ -1,5 +1,9 @@
 import { Capacitor } from "@capacitor/core";
-import { Haptics, type HapticsPlugin } from "@capacitor/haptics";
+import {
+  Haptics,
+  NotificationType,
+  type HapticsPlugin,
+} from "@capacitor/haptics";
 
 export type FeedbackResult = "played" | "unsupported" | "failed";
 
@@ -47,11 +51,23 @@ export class WebAudioBeepAdapter implements BeepAdapter {
       const startedAt = context.currentTime;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(880, startedAt);
-      gain.gain.setValueAtTime(0.0001, startedAt);
-      gain.gain.exponentialRampToValueAtTime(0.24, startedAt + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + 0.18);
+      oscillator.type = "triangle";
+      for (const [frequency, offset] of [
+        [784, 0],
+        [988, 0.16],
+        [1318, 0.32],
+      ] as const) {
+        oscillator.frequency.setValueAtTime(frequency, startedAt + offset);
+        gain.gain.setValueAtTime(0.0001, startedAt + offset);
+        gain.gain.exponentialRampToValueAtTime(
+          0.28,
+          startedAt + offset + 0.015,
+        );
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          startedAt + offset + 0.12,
+        );
+      }
       oscillator.connect(gain);
       gain.connect(context.destination);
       oscillator.addEventListener(
@@ -60,7 +76,7 @@ export class WebAudioBeepAdapter implements BeepAdapter {
         { once: true },
       );
       oscillator.start(startedAt);
-      oscillator.stop(startedAt + 0.18);
+      oscillator.stop(startedAt + 0.48);
       return "played";
     } catch {
       void closeQuietly(context);
@@ -73,23 +89,26 @@ export interface HapticsPlatformBridge {
   isNativePlatform(): boolean;
 }
 
-export type HapticsBridge = Pick<HapticsPlugin, "vibrate">;
+export type HapticsBridge = Pick<HapticsPlugin, "notification" | "vibrate">;
 
 export class CapacitorVibrationAdapter implements VibrationAdapter {
   constructor(
     private readonly platform: HapticsPlatformBridge = Capacitor,
     private readonly haptics: HapticsBridge = Haptics,
-    private readonly browserVibrate: (duration: number) => boolean =
+    private readonly browserVibrate: (pattern: number | number[]) => boolean =
       defaultBrowserVibrate,
   ) {}
 
   async vibrate(): Promise<FeedbackResult> {
     try {
       if (this.platform.isNativePlatform()) {
-        await this.haptics.vibrate({ duration: 180 });
+        await this.haptics.notification({ type: NotificationType.Warning });
+        await this.haptics.vibrate({ duration: 450 });
         return "played";
       }
-      return this.browserVibrate(180) ? "played" : "unsupported";
+      return this.browserVibrate([180, 80, 260])
+        ? "played"
+        : "unsupported";
     } catch {
       return "failed";
     }
@@ -115,9 +134,9 @@ function defaultAudioContextFactory(): AudioContext | null {
   return AudioContextConstructor ? new AudioContextConstructor() : null;
 }
 
-function defaultBrowserVibrate(duration: number): boolean {
+function defaultBrowserVibrate(pattern: number | number[]): boolean {
   if (typeof globalThis.navigator?.vibrate !== "function") return false;
-  return globalThis.navigator.vibrate(duration);
+  return globalThis.navigator.vibrate(pattern);
 }
 
 async function closeQuietly(context: AudioContext | null): Promise<void> {

@@ -44,7 +44,9 @@ export function WorkoutExecutionScreen({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingRef = useRef(false);
   const elapsedTimersRef = useRef(new Set<string>());
+  const restFeedbackTimeoutRef = useRef<number | undefined>(undefined);
   const [isPending, setIsPending] = useState(false);
+  const [showRestEndedFeedback, setShowRestEndedFeedback] = useState(false);
   const [elapsedRetryState, setElapsedRetryState] = useState<{
     timerKey: string;
     count: number;
@@ -85,6 +87,19 @@ export function WorkoutExecutionScreen({
           setAnnouncement("训练状态已是最新。");
         } else {
           setAnnouncement(successMessage);
+          if (
+            event.type === "rest_elapsed" &&
+            transition.facts.some((fact) => fact.type === "REST_FINISHED")
+          ) {
+            if (restFeedbackTimeoutRef.current !== undefined) {
+              window.clearTimeout(restFeedbackTimeoutRef.current);
+            }
+            setShowRestEndedFeedback(true);
+            restFeedbackTimeoutRef.current = window.setTimeout(() => {
+              setShowRestEndedFeedback(false);
+              restFeedbackTimeoutRef.current = undefined;
+            }, 1_450);
+          }
         }
         return true;
       } catch {
@@ -101,6 +116,15 @@ export function WorkoutExecutionScreen({
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, [viewKey]);
+
+  useEffect(
+    () => () => {
+      if (restFeedbackTimeoutRef.current !== undefined) {
+        window.clearTimeout(restFeedbackTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (!restTimerId) return;
@@ -339,6 +363,17 @@ export function WorkoutExecutionScreen({
       aria-labelledby="workout-stage-title"
       aria-busy={isPending}
     >
+      {showRestEndedFeedback ? (
+        <div
+          className="workout-rest-ended-feedback"
+          data-testid="rest-ended-feedback"
+          aria-hidden="true"
+        >
+          <span>倒计时完成</span>
+          <strong>休息结束</strong>
+          <small>准备下一组</small>
+        </div>
+      ) : null}
       <p className="workout-live-region" role="status" aria-atomic="true">
         {announcement}
       </p>

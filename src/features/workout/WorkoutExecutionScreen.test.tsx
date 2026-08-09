@@ -131,7 +131,20 @@ describe("WorkoutExecutionScreen", () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
     const session = makeRestingSession(10_400);
-    const onEvent = vi.fn(() => noop(session));
+    const completedRestSession: WorkoutSession = {
+      ...session,
+      phase: {
+        kind: "next_set_ready",
+        position: { exerciseIndex: 0, setIndex: 1 },
+      },
+    };
+    const onEvent = vi.fn(
+      (): WorkoutTransition => ({
+        kind: "changed",
+        state: completedRestSession,
+        facts: [{ type: "REST_FINISHED", timerId: "rest-1" }],
+      }),
+    );
 
     render(<WorkoutExecutionScreen session={session} onEvent={onEvent} />);
 
@@ -146,12 +159,16 @@ describe("WorkoutExecutionScreen", () => {
       expectedRevision: 2,
       at: 10_500,
     });
+    expect(screen.getByTestId("rest-ended-feedback")).toHaveTextContent(
+      "休息结束",
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(2_000);
       await Promise.resolve();
     });
     expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("rest-ended-feedback")).not.toBeInTheDocument();
   });
 
   it("retries an elapsed rest after a transient persistence failure", async () => {
