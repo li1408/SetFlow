@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import {
@@ -31,6 +36,10 @@ import { ManualPlanForm } from "../features/plans/manual-plan-form";
 import { WorkoutExecutionScreen } from "../features/workout/WorkoutExecutionScreen";
 import type { ReminderPermissionState } from "../native/reminder-adapter";
 import {
+  defaultInteractionFeedback,
+  type InteractionFeedbackPlayer,
+} from "../native/interaction-feedback";
+import {
   defaultAppServices,
   type AppServices,
 } from "./services";
@@ -49,13 +58,17 @@ interface ReminderReadiness {
 
 export interface AppProps {
   services?: AppServices;
+  interactionFeedback?: InteractionFeedbackPlayer;
 }
 
 const exercisesById = new Map(
   builtInExerciseCatalog.map((exercise) => [exercise.id, exercise]),
 );
 
-export function App({ services = defaultAppServices }: AppProps) {
+export function App({
+  services = defaultAppServices,
+  interactionFeedback = defaultInteractionFeedback,
+}: AppProps) {
   const appRef = useRef<HTMLDivElement>(null);
   const [screen, setScreen] = useState<AppScreen>("home");
   const [activePlan, setActivePlan] = useState<StoredPlan | null>(null);
@@ -304,8 +317,22 @@ export function App({ services = defaultAppServices }: AppProps) {
 
   const showingWorkout = screen === "workout" && workout !== null;
 
+  function handleInteractionClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!(event.target instanceof Element)) return;
+    const control = event.target.closest(
+      "button, a[href], select, input[type='checkbox'], input[type='radio'], [role='button'], [role='tab']",
+    );
+    if (!control || !event.currentTarget.contains(control)) return;
+    if (control.matches(":disabled, [aria-disabled='true']")) return;
+    void interactionFeedback.playTap().catch(() => undefined);
+  }
+
   return (
-    <div className={showingWorkout ? "app-workout-host" : "app"} ref={appRef}>
+    <div
+      className={showingWorkout ? "app-workout-host" : "app"}
+      ref={appRef}
+      onClickCapture={handleInteractionClick}
+    >
       <a className="skip-link" href="#main-content">
         跳到主要内容
       </a>

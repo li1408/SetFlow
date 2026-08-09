@@ -7,6 +7,7 @@ import type {
   WorkoutEvent,
   WorkoutSession,
 } from "../domain/workout/types";
+import type { InteractionFeedbackPlayer } from "../native/interaction-feedback";
 import { App } from "./App";
 import type { AppServices } from "./services";
 
@@ -16,6 +17,29 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("plays tap feedback for actionable controls", async () => {
+    const services = createServices();
+    const interactionFeedback: InteractionFeedbackPlayer = {
+      playTap: vi.fn(async () => ({
+        sound: "played" as const,
+        haptics: "played" as const,
+      })),
+    };
+    const user = userEvent.setup();
+    render(
+      <App
+        services={services}
+        interactionFeedback={interactionFeedback}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+
+    expect(interactionFeedback.playTap).toHaveBeenCalledOnce();
+  });
+
   it("does not subscribe screen reveals to keyboard-driven viewport height changes", async () => {
     const mediaQueries: string[] = [];
     vi.stubGlobal(
