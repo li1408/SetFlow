@@ -10,6 +10,7 @@ import {
 import type { MuscleGroupId } from "../../domain/planning/types";
 import { EquipmentArtwork } from "./EquipmentArtwork";
 import { ExercisePreviewDialog } from "./ExercisePreviewDialog";
+import { MuscleBodyMap } from "./MuscleBodyMap";
 import {
   difficultyLabels,
   equipmentChoices,
@@ -172,8 +173,8 @@ export function ExerciseBrowser({
             <h3 id="muscle-step-title">选择目标肌群</h3>
             <span>根据已选设备，聚焦今天想练的位置。</span>
           </header>
-          <div className="exercise-browser__muscle-grid">
-            {muscleChoices.map((choice) => {
+          <MuscleBodyMap
+            options={muscleChoices.map((choice) => {
               const count =
                 choice.id === "full_body"
                   ? equipmentCompatible.length
@@ -182,23 +183,16 @@ export function ExerciseBrowser({
                       muscles: [choice.id],
                     }).length;
               const selected = muscles.includes(choice.id);
-              return (
-                <button
-                  className="exercise-browser__muscle js-exercise-choice"
-                  type="button"
-                  key={choice.id}
-                  aria-label={choice.label}
-                  aria-pressed={selected}
-                  disabled={count === 0}
-                  onClick={() => toggleMuscle(choice.id)}
-                >
-                  <span aria-hidden="true">{choice.mark}</span>
-                  <strong>{choice.label}</strong>
-                  <small>{count} 个动作</small>
-                </button>
-              );
+              return {
+                id: choice.id,
+                label: choice.label,
+                count,
+                selected,
+                disabled: count === 0,
+              };
             })}
-          </div>
+            onToggle={toggleMuscle}
+          />
         </section>
       ) : null}
 

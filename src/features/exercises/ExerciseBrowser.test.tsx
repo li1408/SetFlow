@@ -70,6 +70,41 @@ describe("ExerciseBrowser", () => {
     }
   });
 
+  it("selects target areas from a front and back muscle map", async () => {
+    const user = userEvent.setup();
+    render(
+      <ExerciseBrowser
+        exercises={builtInExerciseCatalog}
+        onExerciseSelect={vi.fn()}
+      />,
+    );
+
+    for (const label of [
+      "徒手",
+      "弹力带",
+      "哑铃",
+      "壶铃",
+      "单杠",
+      "训练凳",
+      "瑜伽垫",
+    ]) {
+      await user.click(screen.getByRole("button", { name: label }));
+    }
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    const map = screen.getByRole("region", { name: "人体肌肉选择图" });
+    expect(within(map).getByText("正面")).toBeInTheDocument();
+    expect(within(map).getByText("背面")).toBeInTheDocument();
+
+    const chest = within(map).getByRole("button", { name: "选择胸部" });
+    const back = within(map).getByRole("button", { name: "选择背部" });
+    expect(chest).toBeEnabled();
+    expect(back).toBeEnabled();
+
+    await user.click(chest);
+    expect(chest).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("moves forward and backward without losing equipment or muscle selections", async () => {
     const user = userEvent.setup();
     render(
@@ -86,14 +121,14 @@ describe("ExerciseBrowser", () => {
     expect(
       screen.getByRole("heading", { name: "选择目标肌群" }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "胸部" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
 
     expect(
       screen.getByRole("heading", { name: "选择动作" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "上一步" }));
-    expect(screen.getByRole("button", { name: "胸部" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "选择胸部" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -121,7 +156,7 @@ describe("ExerciseBrowser", () => {
 
     await user.click(screen.getByRole("button", { name: "徒手" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
-    await user.click(screen.getByRole("button", { name: "胸部" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
     const previewButton = screen.getByRole("button", {
       name: "查看标准俯卧撑",
@@ -159,7 +194,7 @@ describe("ExerciseBrowser", () => {
 
     await user.click(screen.getByRole("button", { name: "徒手" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
-    await user.click(screen.getByRole("button", { name: "胸部" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
     const previewButton = screen.getByRole("button", {
       name: "查看标准俯卧撑",

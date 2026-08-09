@@ -14,7 +14,6 @@ export interface EquipmentChoice {
 export interface MuscleChoice {
   id: MuscleGroupId;
   label: string;
-  mark: string;
 }
 
 export const equipmentChoices: EquipmentChoice[] = [
@@ -56,14 +55,14 @@ export const equipmentChoices: EquipmentChoice[] = [
 ];
 
 export const muscleChoices: MuscleChoice[] = [
-  { id: "full_body", label: "全身", mark: "ALL" },
-  { id: "chest", label: "胸部", mark: "CH" },
-  { id: "back", label: "背部", mark: "BK" },
-  { id: "legs", label: "腿部", mark: "LG" },
-  { id: "glutes", label: "臀部", mark: "GL" },
-  { id: "core", label: "核心", mark: "CR" },
-  { id: "shoulders", label: "肩部", mark: "SH" },
-  { id: "arms", label: "手臂", mark: "AR" },
+  { id: "full_body", label: "全身" },
+  { id: "chest", label: "胸部" },
+  { id: "back", label: "背部" },
+  { id: "legs", label: "腿部" },
+  { id: "glutes", label: "臀部" },
+  { id: "core", label: "核心" },
+  { id: "shoulders", label: "肩部" },
+  { id: "arms", label: "手臂" },
 ];
 
 export const equipmentLabels: Record<EquipmentId, string> = {

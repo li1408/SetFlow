@@ -36,7 +36,7 @@ describe("ManualPlanForm", () => {
       within(exerciseBrowser).getByRole("button", { name: "继续" }),
     );
     await user.click(
-      within(exerciseBrowser).getByRole("button", { name: "核心" }),
+      within(exerciseBrowser).getByRole("button", { name: "选择核心" }),
     );
     await user.click(
       within(exerciseBrowser).getByRole("button", { name: "继续" }),
