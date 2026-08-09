@@ -70,7 +70,7 @@ describe("ExerciseBrowser", () => {
     }
   });
 
-  it("selects target areas from a front and back muscle map", async () => {
+  it("selects target areas from the original detailed muscle map", async () => {
     const user = userEvent.setup();
     render(
       <ExerciseBrowser
@@ -92,14 +92,15 @@ describe("ExerciseBrowser", () => {
     }
     await user.click(screen.getByRole("button", { name: "继续" }));
 
-    const map = screen.getByRole("region", { name: "人体肌肉选择图" });
-    expect(within(map).getByText("正面")).toBeInTheDocument();
-    expect(within(map).getByText("背面")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "原版人体肌肉选择图" }),
+    ).toBeInTheDocument();
 
+    const map = screen.getByRole("region", { name: "人体肌肉选择图" });
     const chest = within(map).getByRole("button", { name: "选择胸部" });
-    const back = within(map).getByRole("button", { name: "选择背部" });
+    const biceps = within(map).getByRole("button", { name: "选择二头肌" });
     expect(chest).toBeEnabled();
-    expect(back).toBeEnabled();
+    expect(biceps).toBeEnabled();
 
     await user.click(chest);
     expect(chest).toHaveAttribute("aria-pressed", "true");

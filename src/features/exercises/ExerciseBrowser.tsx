@@ -7,7 +7,6 @@ import {
   type BrowsableExercise,
   type ExerciseEquipmentFilter,
 } from "../../domain/exercises/exercise-filter";
-import type { MuscleGroupId } from "../../domain/planning/types";
 import { EquipmentArtwork } from "./EquipmentArtwork";
 import { ExercisePreviewDialog } from "./ExercisePreviewDialog";
 import { MuscleBodyMap } from "./MuscleBodyMap";
@@ -15,9 +14,13 @@ import {
   difficultyLabels,
   equipmentChoices,
   equipmentLabels,
-  muscleChoices,
-  muscleLabels,
 } from "./exercise-browser-options";
+import {
+  mapOriginalMusclesToExerciseGroups,
+  originalMuscleChoices,
+  originalMuscleLabels,
+  type OriginalMuscleId,
+} from "./original-muscle-options";
 
 gsap.registerPlugin(useGSAP);
 
@@ -37,16 +40,24 @@ export function ExerciseBrowser({
   const rootRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<BrowserStep>("equipment");
   const [equipment, setEquipment] = useState<ExerciseEquipmentFilter[]>([]);
-  const [muscles, setMuscles] = useState<MuscleGroupId[]>([]);
+  const [muscles, setMuscles] = useState<OriginalMuscleId[]>([]);
   const [preview, setPreview] = useState<BrowsableExercise | null>(null);
 
+  const exerciseMuscleGroups = useMemo(
+    () => mapOriginalMusclesToExerciseGroups(muscles),
+    [muscles],
+  );
   const equipmentCompatible = useMemo(
     () => filterExercises(exercises, { equipment, muscles: [] }),
     [equipment, exercises],
   );
   const visibleExercises = useMemo(
-    () => filterExercises(exercises, { equipment, muscles }),
-    [equipment, exercises, muscles],
+    () =>
+      filterExercises(exercises, {
+        equipment,
+        muscles: exerciseMuscleGroups,
+      }),
+    [equipment, exerciseMuscleGroups, exercises],
   );
 
   useGSAP(
@@ -103,15 +114,11 @@ export function ExerciseBrowser({
     );
   }
 
-  function toggleMuscle(id: MuscleGroupId) {
+  function toggleMuscle(id: OriginalMuscleId) {
     setMuscles((current) => {
-      if (id === "full_body") {
-        return current.includes(id) ? [] : [id];
-      }
-      const withoutFullBody = current.filter((item) => item !== "full_body");
-      return withoutFullBody.includes(id)
-        ? withoutFullBody.filter((item) => item !== id)
-        : [...withoutFullBody, id];
+      return current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
     });
   }
 
@@ -174,14 +181,11 @@ export function ExerciseBrowser({
             <span>根据已选设备，聚焦今天想练的位置。</span>
           </header>
           <MuscleBodyMap
-            options={muscleChoices.map((choice) => {
-              const count =
-                choice.id === "full_body"
-                  ? equipmentCompatible.length
-                  : filterExercises(equipmentCompatible, {
-                      equipment,
-                      muscles: [choice.id],
-                    }).length;
+            options={originalMuscleChoices.map((choice) => {
+              const count = filterExercises(equipmentCompatible, {
+                equipment,
+                muscles: [...choice.exerciseGroups],
+              }).length;
               const selected = muscles.includes(choice.id);
               return {
                 id: choice.id,
@@ -201,7 +205,7 @@ export function ExerciseBrowser({
           <header className="exercise-browser__heading">
             <p>第三步 · {visibleExercises.length} 个匹配</p>
             <h3 id="exercise-step-title">选择动作</h3>
-            <span>{muscles.map((item) => muscleLabels[item]).join("、")}</span>
+            <span>{muscles.map((item) => originalMuscleLabels[item]).join("、")}</span>
           </header>
           <div className="exercise-browser__exercise-list">
             {visibleExercises.map((exercise, index) => {
