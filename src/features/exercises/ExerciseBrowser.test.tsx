@@ -97,15 +97,17 @@ describe("ExerciseBrowser", () => {
     await user.click(screen.getByRole("button", { name: "继续" }));
     await user.click(screen.getByRole("button", { name: "胸部" }));
     await user.click(screen.getByRole("button", { name: "继续" }));
-    await user.click(
-      screen.getByRole("button", { name: "查看标准俯卧撑" }),
-    );
+    const previewButton = screen.getByRole("button", {
+      name: "查看标准俯卧撑",
+    });
+    await user.click(previewButton);
 
     expect(
       screen.getByRole("dialog", { name: "标准俯卧撑动作预览" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "关闭预览" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(previewButton).toHaveFocus();
     expect(onExerciseSelect).not.toHaveBeenCalled();
 
     await user.click(
@@ -117,5 +119,54 @@ describe("ExerciseBrowser", () => {
 
     expect(onExerciseSelect).toHaveBeenCalledTimes(1);
     expect(onExerciseSelect).toHaveBeenCalledWith(exercises[0]);
+  });
+
+  it("keeps keyboard focus inside the preview until it closes", async () => {
+    const user = userEvent.setup();
+    const onExerciseSelect = vi.fn();
+    const { rerender } = render(
+      <ExerciseBrowser
+        exercises={exercises}
+        onExerciseSelect={onExerciseSelect}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "徒手" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "胸部" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    const previewButton = screen.getByRole("button", {
+      name: "查看标准俯卧撑",
+    });
+    await user.click(previewButton);
+
+    const closeButton = screen.getByRole("button", { name: "关闭预览" });
+    const addButton = screen.getByRole("button", {
+      name: "添加标准俯卧撑",
+    });
+    expect(closeButton).toHaveFocus();
+    expect(document.body).toHaveStyle({ overflow: "hidden" });
+
+    await user.tab({ shift: true });
+    expect(addButton).toHaveFocus();
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+
+    addButton.focus();
+    rerender(
+      <ExerciseBrowser
+        exercises={exercises}
+        onExerciseSelect={onExerciseSelect}
+      />,
+    );
+    expect(addButton).toHaveFocus();
+
+    previewButton.focus();
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveStyle({ overflow: "hidden" });
   });
 });

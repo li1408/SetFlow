@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { Check, Play, X } from "lucide-react";
 import type { BrowsableExercise } from "../../domain/exercises/exercise-filter";
 import {
@@ -21,16 +21,58 @@ export function ExercisePreviewDialog({
   onAdd,
   onClose,
 }: ExercisePreviewDialogProps) {
+  const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const closeFromEffect = useEffectEvent(onClose);
 
   useEffect(() => {
-    closeButtonRef.current?.focus();
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusCloseButton = () => closeButtonRef.current?.focus();
+    focusCloseButton();
+    const focusFrame = window.requestAnimationFrame(focusCloseButton);
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        closeFromEffect();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+
+      if (!dialogRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   const equipment =
     exercise.requiredEquipment.length === 0
@@ -45,6 +87,7 @@ export function ExercisePreviewDialog({
       }}
     >
       <section
+        ref={dialogRef}
         className="exercise-preview js-exercise-preview"
         role="dialog"
         aria-modal="true"
