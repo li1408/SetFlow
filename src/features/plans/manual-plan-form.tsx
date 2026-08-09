@@ -6,6 +6,7 @@ import type {
   ExerciseDefinition,
   ManualPlanDraft,
 } from "../../domain/planning/types";
+import { ExerciseBrowser } from "../exercises/ExerciseBrowser";
 import "./manual-plan-form.css";
 
 const equipmentLabels: Record<EquipmentId, string> = {
@@ -141,7 +142,6 @@ export function ManualPlanForm({
   onPlanCreated,
 }: ManualPlanFormProps) {
   const titleId = useId();
-  const catalogHelpId = useId();
   const errorId = useId();
   const [dayName, setDayName] = useState(
     () => initialPlan?.days[0]?.name ?? "居家全身训练",
@@ -259,35 +259,17 @@ export function ManualPlanForm({
           />
         </label>
 
-        <fieldset
-          className="manual-plan-form__catalog"
-          aria-describedby={catalogHelpId}
-        >
-          <legend>选择动作（可多选）</legend>
-          <p id={catalogHelpId}>每个动作都标明所需器械。</p>
-          <div className="manual-plan-form__catalog-list">
-            {builtInExerciseCatalog.map((exercise) => {
-              const isSelected = selectedExercises.some(
-                (item) => item.exerciseId === exercise.id,
-              );
-              return (
-                <label key={exercise.id}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(event) =>
-                      setExerciseSelected(exercise, event.currentTarget.checked)
-                    }
-                  />
-                  <span>
-                    <strong>{exercise.name}</strong>
-                    <small>{equipmentRequirement(exercise)}</small>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
+        <section className="manual-plan-form__browser" aria-label="选择动作">
+          <ExerciseBrowser
+            exercises={builtInExerciseCatalog}
+            selectedExerciseIds={selectedExercises.map(
+              (exercise) => exercise.exerciseId,
+            )}
+            onExerciseSelect={(exercise) =>
+              setExerciseSelected(exercise, true)
+            }
+          />
+        </section>
 
         <div className="manual-plan-form__selected" aria-live="polite">
           <div className="manual-plan-form__selected-heading">
