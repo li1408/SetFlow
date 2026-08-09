@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generatePlan } from "../planning/generate-plan";
 import type {
+  EquipmentId,
   ExerciseDefinition,
   MovementPattern,
 } from "../planning/types";
@@ -13,6 +14,15 @@ const allMovementPatterns: MovementPattern[] = [
   "pull",
   "lunge",
   "core",
+];
+
+const allSupportedEquipment: EquipmentId[] = [
+  "mat",
+  "resistance_band",
+  "dumbbell",
+  "kettlebell",
+  "pull_up_bar",
+  "bench",
 ];
 
 describe("builtInExerciseCatalog", () => {
@@ -35,6 +45,17 @@ describe("builtInExerciseCatalog", () => {
     );
 
     expect(coveredPatterns).toEqual(new Set(allMovementPatterns));
+  });
+
+  it("offers at least one exercise for every supported equipment choice", () => {
+    for (const equipment of allSupportedEquipment) {
+      expect(
+        builtInExerciseCatalog.some((exercise) =>
+          exercise.requiredEquipment.includes(equipment),
+        ),
+        `${equipment} should have a selectable exercise`,
+      ).toBe(true);
+    }
   });
 
   it("keeps every pull exercise honest about its required equipment", () => {
