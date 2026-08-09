@@ -8,7 +8,6 @@ import type { ExerciseEquipmentFilter } from "../../domain/exercises/exercise-fi
 export interface EquipmentChoice {
   id: ExerciseEquipmentFilter;
   label: string;
-  mark: string;
   description: string;
 }
 
@@ -22,43 +21,36 @@ export const equipmentChoices: EquipmentChoice[] = [
   {
     id: "bodyweight",
     label: "徒手",
-    mark: "BW",
     description: "无需额外器械",
   },
   {
     id: "resistance_band",
     label: "弹力带",
-    mark: "RB",
     description: "轻便阻力训练",
   },
   {
     id: "dumbbell",
     label: "哑铃",
-    mark: "DB",
     description: "自由重量训练",
   },
   {
     id: "kettlebell",
     label: "壶铃",
-    mark: "KB",
     description: "摆动与力量训练",
   },
   {
     id: "pull_up_bar",
     label: "单杠",
-    mark: "PB",
     description: "悬垂与拉力训练",
   },
   {
     id: "bench",
     label: "训练凳",
-    mark: "BN",
     description: "支撑与卧推动作",
   },
   {
     id: "mat",
     label: "瑜伽垫",
-    mark: "MT",
     description: "地面动作更舒适",
   },
 ];

@@ -8,6 +8,7 @@ import {
   type ExerciseEquipmentFilter,
 } from "../../domain/exercises/exercise-filter";
 import type { MuscleGroupId } from "../../domain/planning/types";
+import { EquipmentArtwork } from "./EquipmentArtwork";
 import { ExercisePreviewDialog } from "./ExercisePreviewDialog";
 import {
   difficultyLabels,
@@ -146,7 +147,10 @@ export function ExerciseBrowser({
                   disabled={count === 0}
                   onClick={() => toggleEquipment(choice.id)}
                 >
-                  <span className="exercise-browser__choice-mark" aria-hidden="true">{choice.mark}</span>
+                  <EquipmentArtwork
+                    equipment={choice.id}
+                    label={choice.label}
+                  />
                   <span className="exercise-browser__choice-copy">
                     <strong>{choice.label}</strong>
                     <small>{count === 0 ? "后续加入" : choice.description}</small>

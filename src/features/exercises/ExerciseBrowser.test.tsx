@@ -1,10 +1,11 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ExerciseDefinition,
   MuscleGroupId,
 } from "../../domain/planning/types";
+import { builtInExerciseCatalog } from "../../domain/exercises/built-in-catalog";
 import { ExerciseBrowser } from "./ExerciseBrowser";
 
 afterEach(cleanup);
@@ -44,6 +45,31 @@ const exercises: BrowsableExercise[] = [
 ];
 
 describe("ExerciseBrowser", () => {
+  it("shows artwork and selectable exercises for every supported equipment", () => {
+    render(
+      <ExerciseBrowser
+        exercises={builtInExerciseCatalog}
+        onExerciseSelect={vi.fn()}
+      />,
+    );
+
+    for (const label of [
+      "徒手",
+      "弹力带",
+      "哑铃",
+      "壶铃",
+      "单杠",
+      "训练凳",
+      "瑜伽垫",
+    ]) {
+      const button = screen.getByRole("button", { name: label });
+      expect(button).toBeEnabled();
+      expect(
+        within(button).getByRole("img", { name: `${label}器械示意图` }),
+      ).toBeInTheDocument();
+    }
+  });
+
   it("moves forward and backward without losing equipment or muscle selections", async () => {
     const user = userEvent.setup();
     render(
