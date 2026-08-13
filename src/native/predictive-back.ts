@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
 
 export const PREDICTIVE_BACK_EVENT = "setflowPredictiveBack";
 export const NESTED_PREDICTIVE_BACK_EVENT = "setflowNestedPredictiveBack";
@@ -9,13 +9,13 @@ export type PredictiveBackEvent =
   | { type: "cancelled"; progress: 0 }
   | { type: "invoked"; progress: 1 };
 
-interface PredictiveBackPlugin {
-  setEnabled(options: { enabled: boolean }): Promise<void>;
+declare global {
+  interface Window {
+    SetFlowNativeNavigation?: {
+      setPredictiveBackEnabled(enabled: boolean): void;
+    };
+  }
 }
-
-const nativePredictiveBack = registerPlugin<PredictiveBackPlugin>(
-  "SetFlowPredictiveBack",
-);
 
 export function isPredictiveBackEvent(
   value: unknown,
@@ -31,7 +31,7 @@ export function isPredictiveBackEvent(
   );
 }
 
-export async function setNativePredictiveBackEnabled(enabled: boolean) {
+export function setNativePredictiveBackEnabled(enabled: boolean) {
   if (Capacitor.getPlatform() !== "android") return;
-  await nativePredictiveBack.setEnabled({ enabled });
+  window.SetFlowNativeNavigation?.setPredictiveBackEnabled(enabled);
 }

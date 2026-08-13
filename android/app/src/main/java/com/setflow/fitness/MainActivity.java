@@ -7,6 +7,7 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.JavascriptInterface;
 
 import androidx.activity.BackEventCompat;
 import androidx.activity.OnBackPressedCallback;
@@ -40,8 +41,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(PredictiveBackPlugin.class);
         super.onCreate(savedInstanceState);
+        getBridge().getWebView().addJavascriptInterface(
+            new NativeNavigationBridge(),
+            "SetFlowNativeNavigation"
+        );
         getOnBackPressedDispatcher().addCallback(this, predictiveBackCallback);
         ensureRestNotificationChannel();
     }
@@ -55,6 +59,13 @@ public class MainActivity extends BridgeActivity {
         event.put("type", type);
         event.put("progress", progress);
         getBridge().triggerWindowJSEvent("setflowPredictiveBack", event.toString());
+    }
+
+    private final class NativeNavigationBridge {
+        @JavascriptInterface
+        public void setPredictiveBackEnabled(boolean enabled) {
+            runOnUiThread(() -> MainActivity.this.setPredictiveBackEnabled(enabled));
+        }
     }
 
     private void ensureRestNotificationChannel() {

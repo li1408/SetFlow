@@ -360,9 +360,9 @@ export function App({
 
   useEffect(() => {
     const shouldHandleBack = showingWorkout || screen === "plan-builder";
-    void setNativePredictiveBackEnabled(shouldHandleBack).catch(() => undefined);
+    setNativePredictiveBackEnabled(shouldHandleBack);
     return () => {
-      void setNativePredictiveBackEnabled(false).catch(() => undefined);
+      setNativePredictiveBackEnabled(false);
     };
   }, [screen, showingWorkout]);
 
