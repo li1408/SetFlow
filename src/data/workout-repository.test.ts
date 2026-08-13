@@ -131,6 +131,42 @@ describe("WorkoutRepository", () => {
     });
   });
 
+  it("ends an active workout by either saving its partial record or discarding it", async () => {
+    const database = track(
+      new SetFlowDatabase(`setflow-end-workout-${crypto.randomUUID()}`),
+    );
+    const repository = new WorkoutRepository(database, () => 10_000);
+    await createRestingWorkout(repository);
+
+    await repository.end("session-1", { save: true });
+
+    expect(await repository.getActive()).toBeNull();
+    expect(await database.workouts.get("session-1")).toMatchObject({
+      status: "abandoned",
+      session: { performedSets: [{ id: "performed-1" }] },
+    });
+    expect(await database.activeRestTimers.get("rest-1")).toMatchObject({
+      status: "skipped",
+    });
+    expect(await repository.listReminderJobs()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ timerId: "rest-1", action: "cancel" }),
+      ]),
+    );
+
+    const discardDatabase = track(
+      new SetFlowDatabase(`setflow-discard-workout-${crypto.randomUUID()}`),
+    );
+    const discardRepository = new WorkoutRepository(discardDatabase, () => 10_000);
+    await createRestingWorkout(discardRepository);
+
+    await discardRepository.end("session-1", { save: false });
+
+    expect(await discardRepository.getActive()).toBeNull();
+    expect(await discardDatabase.workouts.get("session-1")).toBeUndefined();
+    expect(await discardDatabase.activeRestTimers.get("rest-1")).toBeUndefined();
+  });
+
   it("ignores a stale native reminder acknowledgement after rescheduling", async () => {
     const database = track(
       new SetFlowDatabase(`setflow-reminder-cas-${crypto.randomUUID()}`),
