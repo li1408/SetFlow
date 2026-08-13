@@ -1,5 +1,3 @@
-import { Capacitor } from "@capacitor/core";
-
 export const PREDICTIVE_BACK_EVENT = "setflowPredictiveBack";
 export const NESTED_PREDICTIVE_BACK_EVENT = "setflowNestedPredictiveBack";
 
@@ -8,14 +6,6 @@ export type PredictiveBackEvent =
   | { type: "progress"; progress: number }
   | { type: "cancelled"; progress: 0 }
   | { type: "invoked"; progress: 1 };
-
-declare global {
-  interface Window {
-    SetFlowNativeNavigation?: {
-      setPredictiveBackEnabled(enabled: boolean): void;
-    };
-  }
-}
 
 export function isPredictiveBackEvent(
   value: unknown,
@@ -29,9 +19,4 @@ export function isPredictiveBackEvent(
       event.type === "invoked") &&
     typeof event.progress === "number"
   );
-}
-
-export function setNativePredictiveBackEnabled(enabled: boolean) {
-  if (Capacitor.getPlatform() !== "android") return;
-  window.SetFlowNativeNavigation?.setPredictiveBackEnabled(enabled);
 }

@@ -44,7 +44,6 @@ import {
   NESTED_PREDICTIVE_BACK_EVENT,
   PREDICTIVE_BACK_EVENT,
   isPredictiveBackEvent,
-  setNativePredictiveBackEnabled,
 } from "../native/predictive-back";
 import {
   defaultAppServices,
@@ -357,14 +356,6 @@ export function App({
   }
 
   const showingWorkout = screen === "workout" && workout !== null;
-
-  useEffect(() => {
-    const shouldHandleBack = showingWorkout || screen === "plan-builder";
-    setNativePredictiveBackEnabled(shouldHandleBack);
-    return () => {
-      setNativePredictiveBackEnabled(false);
-    };
-  }, [screen, showingWorkout]);
 
   useEffect(() => {
     function handlePredictiveBack(event: Event) {

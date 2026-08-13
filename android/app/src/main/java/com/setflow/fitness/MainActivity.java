@@ -7,7 +7,6 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.webkit.JavascriptInterface;
 
 import androidx.activity.BackEventCompat;
 import androidx.activity.OnBackPressedCallback;
@@ -17,7 +16,7 @@ import com.getcapacitor.JSObject;
 
 public class MainActivity extends BridgeActivity {
     private static final String REST_CHANNEL_ID = "setflow-rest-timers";
-    private final OnBackPressedCallback predictiveBackCallback = new OnBackPressedCallback(false) {
+    private final OnBackPressedCallback predictiveBackCallback = new OnBackPressedCallback(true) {
         @Override
         public void handleOnBackStarted(BackEventCompat backEvent) {
             emitPredictiveBack("started", backEvent.getProgress());
@@ -42,30 +41,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getBridge().getWebView().addJavascriptInterface(
-            new NativeNavigationBridge(),
-            "SetFlowNativeNavigation"
-        );
         getOnBackPressedDispatcher().addCallback(this, predictiveBackCallback);
         ensureRestNotificationChannel();
-    }
-
-    public void setPredictiveBackEnabled(boolean enabled) {
-        predictiveBackCallback.setEnabled(enabled);
     }
 
     private void emitPredictiveBack(String type, float progress) {
         JSObject event = new JSObject();
         event.put("type", type);
         event.put("progress", progress);
-        getBridge().triggerWindowJSEvent("setflowPredictiveBack", event.toString());
-    }
-
-    private final class NativeNavigationBridge {
-        @JavascriptInterface
-        public void setPredictiveBackEnabled(boolean enabled) {
-            runOnUiThread(() -> MainActivity.this.setPredictiveBackEnabled(enabled));
-        }
+        JSObject payload = new JSObject();
+        payload.put("detail", event);
+        getBridge().triggerWindowJSEvent("setflowPredictiveBack", payload.toString());
     }
 
     private void ensureRestNotificationChannel() {

@@ -62,9 +62,9 @@ describe("SetFlow theme contract", () => {
     const packageJson = readRepoFile("package.json");
 
     expect(manifest).toContain('android:enableOnBackInvokedCallback="true"');
-    expect(appBuild).toContain("versionCode 5");
-    expect(appBuild).toContain('versionName "0.1.4"');
-    expect(packageJson).toContain('"version": "0.1.4"');
+    expect(appBuild).toContain("versionCode 7");
+    expect(appBuild).toContain('versionName "0.1.6"');
+    expect(packageJson).toContain('"version": "0.1.6"');
   });
 
   it("keeps the system back callback owned by MainActivity after Capacitor starts", () => {
@@ -76,15 +76,27 @@ describe("SetFlow theme contract", () => {
     );
   });
 
-  it("uses MainActivity's WebView navigation bridge instead of an async Capacitor plugin", () => {
+  it("keeps predictive back enabled without relying on a late WebView bridge", () => {
     const activity = readRepoFile(
       "android/app/src/main/java/com/setflow/fitness/MainActivity.java",
     );
     const predictiveBack = readRepoFile("src/native/predictive-back.ts");
 
-    expect(activity).toContain("addJavascriptInterface");
-    expect(activity).toContain("SetFlowNativeNavigation");
+    expect(activity).toContain("new OnBackPressedCallback(true)");
+    expect(activity).not.toContain("addJavascriptInterface");
+    expect(activity).not.toContain("SetFlowNativeNavigation");
     expect(activity).not.toContain("registerPlugin(PredictiveBackPlugin.class)");
-    expect(predictiveBack).toContain("SetFlowNativeNavigation");
+    expect(predictiveBack).not.toContain("SetFlowNativeNavigation");
+  });
+
+  it("delivers predictive back data through DOM event detail", () => {
+    const activity = readRepoFile(
+      "android/app/src/main/java/com/setflow/fitness/MainActivity.java",
+    );
+
+    expect(activity).toContain('payload.put("detail", event)');
+    expect(activity).toContain(
+      'triggerWindowJSEvent("setflowPredictiveBack", payload.toString())',
+    );
   });
 });
