@@ -62,8 +62,23 @@ describe("SetFlow theme contract", () => {
     const packageJson = readRepoFile("package.json");
 
     expect(manifest).toContain('android:enableOnBackInvokedCallback="true"');
-    expect(appBuild).toContain("versionCode 3");
-    expect(appBuild).toContain('versionName "0.1.2"');
-    expect(packageJson).toContain('"version": "0.1.2"');
+    expect(appBuild).toContain("versionCode 4");
+    expect(appBuild).toContain('versionName "0.1.3"');
+    expect(packageJson).toContain('"version": "0.1.3"');
+  });
+
+  it("keeps the system back callback owned by MainActivity after Capacitor starts", () => {
+    const activity = readRepoFile(
+      "android/app/src/main/java/com/setflow/fitness/MainActivity.java",
+    );
+    const plugin = readRepoFile(
+      "android/app/src/main/java/com/setflow/fitness/PredictiveBackPlugin.java",
+    );
+
+    expect(activity).toMatch(
+      /super\.onCreate\(savedInstanceState\);[\s\S]*getOnBackPressedDispatcher\(\)\.addCallback\(this, predictiveBackCallback\)/,
+    );
+    expect(plugin).toContain("setPredictiveBackEnabled");
+    expect(plugin).not.toContain("getOnBackPressedDispatcher().addCallback");
   });
 });
