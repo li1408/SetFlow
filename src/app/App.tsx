@@ -463,10 +463,16 @@ export function App({
         <BackGesturePreview screen={screen} plan={activePlan} />
       ) : null}
       <div
-        className="app-back-gesture__current"
-        style={{
-          transform: `translateX(${Math.round(backGestureProgress * 100)}%)`,
-        }}
+        className={`app-back-gesture__current${
+          backGestureProgress > 0 ? " app-back-gesture__current--dragging" : ""
+        }`}
+        style={
+          backGestureProgress > 0
+            ? {
+                transform: `translateX(${Math.round(backGestureProgress * 100)}%)`,
+              }
+            : undefined
+        }
       >
       <a className="skip-link" href="#main-content">
         跳到主要内容

@@ -229,8 +229,18 @@ export function ExerciseBrowser({
         />
       ) : null}
       <div
-        className="exercise-browser__current"
-        style={{ transform: `translateX(${Math.round(backGestureProgress * 100)}%)` }}
+        className={`exercise-browser__current${
+          backGestureProgress > 0
+            ? " exercise-browser__current--dragging"
+            : ""
+        }`}
+        style={
+          backGestureProgress > 0
+            ? {
+                transform: `translateX(${Math.round(backGestureProgress * 100)}%)`,
+              }
+            : undefined
+        }
       >
       <ol className="exercise-browser__stepper" aria-label="动作选择进度">
         <StepIndicator current={step} id="equipment" number="01" label="设备" />

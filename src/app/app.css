@@ -98,6 +98,12 @@ select:focus-visible {
   transform: translateY(0);
 }
 
+@media (hover: none), (pointer: coarse) {
+  .skip-link {
+    display: none;
+  }
+}
+
 .app {
   display: flex;
   width: min(100%, 31rem);
@@ -127,6 +133,9 @@ select:focus-visible {
   flex-direction: column;
   background: var(--color-canvas);
   transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-back-gesture__current--dragging {
   will-change: transform;
 }
 

@@ -207,6 +207,9 @@ describe("ExerciseBrowser", () => {
     await user.click(previewButton);
 
     expect(
+      document.querySelector(".exercise-browser__current"),
+    ).not.toHaveStyle({ transform: "translateX(0%)" });
+    expect(
       screen.getByRole("dialog", { name: "标准俯卧撑动作预览" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "关闭预览" }));

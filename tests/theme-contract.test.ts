@@ -47,4 +47,12 @@ describe("SetFlow theme contract", () => {
       '<color name="setflow_surface_raised">#20241D</color>',
     );
   });
+
+  it("keeps the desktop skip link out of the touch-first Android layout", () => {
+    const appCss = readRepoFile("src/app/app.css");
+
+    expect(appCss).toMatch(
+      /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*{\s*\.skip-link\s*{[^}]*display:\s*none/s,
+    );
+  });
 });

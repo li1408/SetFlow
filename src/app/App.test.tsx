@@ -17,6 +17,15 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("does not create a transformed containing block until a back swipe starts", () => {
+    const services = createServices();
+    const { container } = render(<App services={services} />);
+
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).not.toHaveStyle({ transform: "translateX(0%)" });
+  });
+
   it("plays tap feedback for actionable controls", async () => {
     const services = createServices();
     const interactionFeedback: InteractionFeedbackPlayer = {
