@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Check, Play, X } from "lucide-react";
 import type { BrowsableExercise } from "../../domain/exercises/exercise-filter";
 import {
@@ -10,6 +11,7 @@ import "./exercise-browser.css";
 
 export interface ExercisePreviewDialogProps {
   exercise: BrowsableExercise;
+  backGestureProgress?: number;
   isSelected?: boolean;
   onAdd: () => void;
   onClose: () => void;
@@ -17,6 +19,7 @@ export interface ExercisePreviewDialogProps {
 
 export function ExercisePreviewDialog({
   exercise,
+  backGestureProgress = 0,
   isSelected = false,
   onAdd,
   onClose,
@@ -79,9 +82,18 @@ export function ExercisePreviewDialog({
       ? "徒手"
       : exercise.requiredEquipment.map((item) => equipmentLabels[item]).join("、");
 
-  return (
+  const clampedProgress = Math.min(1, Math.max(0, backGestureProgress));
+
+  return createPortal(
     <div
       className="exercise-preview-backdrop"
+      style={
+        clampedProgress > 0
+          ? {
+              backgroundColor: `rgb(0 0 0 / ${0.72 * (1 - clampedProgress)})`,
+            }
+          : undefined
+      }
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -89,6 +101,11 @@ export function ExercisePreviewDialog({
       <section
         ref={dialogRef}
         className="exercise-preview js-exercise-preview"
+        style={
+          clampedProgress > 0
+            ? { transform: `translateX(${Math.round(clampedProgress * 100)}%)` }
+            : undefined
+        }
         role="dialog"
         aria-modal="true"
         aria-label={`${exercise.name}动作预览`}
@@ -148,5 +165,7 @@ export function ExercisePreviewDialog({
         </button>
       </section>
     </div>
+    ,
+    document.body,
   );
 }

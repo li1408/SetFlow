@@ -41,6 +41,12 @@ import {
   type InteractionFeedbackPlayer,
 } from "../native/interaction-feedback";
 import {
+  NESTED_PREDICTIVE_BACK_EVENT,
+  PREDICTIVE_BACK_EVENT,
+  isPredictiveBackEvent,
+  setNativePredictiveBackEnabled,
+} from "../native/predictive-back";
+import {
   defaultAppServices,
   type AppServices,
 } from "./services";
@@ -351,6 +357,41 @@ export function App({
   }
 
   const showingWorkout = screen === "workout" && workout !== null;
+
+  useEffect(() => {
+    const shouldHandleBack = showingWorkout || screen === "plan-builder";
+    void setNativePredictiveBackEnabled(shouldHandleBack).catch(() => undefined);
+    return () => {
+      void setNativePredictiveBackEnabled(false).catch(() => undefined);
+    };
+  }, [screen, showingWorkout]);
+
+  useEffect(() => {
+    function handlePredictiveBack(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!isPredictiveBackEvent(detail)) return;
+
+      if (nestedBackAvailableRef.current) {
+        window.dispatchEvent(
+          new CustomEvent(NESTED_PREDICTIVE_BACK_EVENT, { detail }),
+        );
+        if (detail.type === "invoked") requestBackRef.current();
+        return;
+      }
+
+      if (detail.type === "started" || detail.type === "progress") {
+        setBackGestureProgress(detail.progress);
+        return;
+      }
+
+      setBackGestureProgress(0);
+      if (detail.type === "invoked") requestBackRef.current();
+    }
+
+    window.addEventListener(PREDICTIVE_BACK_EVENT, handlePredictiveBack);
+    return () =>
+      window.removeEventListener(PREDICTIVE_BACK_EVENT, handlePredictiveBack);
+  }, []);
 
   function requestBack() {
     if (workoutExitDialog === "save") {

@@ -55,4 +55,15 @@ describe("SetFlow theme contract", () => {
       /@media\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*{\s*\.skip-link\s*{[^}]*display:\s*none/s,
     );
   });
+
+  it("opts Android into predictive back and advances every APK version", () => {
+    const manifest = readRepoFile("android/app/src/main/AndroidManifest.xml");
+    const appBuild = readRepoFile("android/app/build.gradle");
+    const packageJson = readRepoFile("package.json");
+
+    expect(manifest).toContain('android:enableOnBackInvokedCallback="true"');
+    expect(appBuild).toContain("versionCode 3");
+    expect(appBuild).toContain('versionName "0.1.2"');
+    expect(packageJson).toContain('"version": "0.1.2"');
+  });
 });

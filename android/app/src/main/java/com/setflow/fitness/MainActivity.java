@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(PredictiveBackPlugin.class);
         super.onCreate(savedInstanceState);
         ensureRestNotificationChannel();
     }

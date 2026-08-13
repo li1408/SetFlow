@@ -26,6 +26,47 @@ describe("App", () => {
     ).not.toHaveStyle({ transform: "translateX(0%)" });
   });
 
+  it("previews, cancels, and then commits an Android predictive back gesture", async () => {
+    const services = createServices();
+    vi.mocked(services.plans.getActive).mockResolvedValue(storedPlanFixture());
+    const user = userEvent.setup();
+    const { container } = render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "调整训练计划" }),
+    );
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "progress", progress: 0.5 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).toHaveStyle({ transform: "translateX(50%)" });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "cancelled", progress: 0 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).not.toHaveStyle({ transform: "translateX(50%)" });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "invoked", progress: 1 },
+        }),
+      );
+    });
+    expect(screen.getByRole("heading", { name: "全身训练 A" })).toBeInTheDocument();
+  });
+
   it("plays tap feedback for actionable controls", async () => {
     const services = createServices();
     const interactionFeedback: InteractionFeedbackPlayer = {
@@ -122,6 +163,41 @@ describe("App", () => {
 
     act(backHandler);
     expect(screen.getByRole("heading", { name: "选择设备" })).toBeInTheDocument();
+  });
+
+  it("uses Android predictive back progress to preview the previous exercise step", async () => {
+    const services = createServices();
+    const user = userEvent.setup();
+    const { container } = render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+    await user.click(screen.getByRole("tab", { name: "手动创建" }));
+    await user.click(screen.getByRole("button", { name: "徒手" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "progress", progress: 0.5 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".exercise-browser__back-preview h3"),
+    ).toHaveTextContent("选择目标肌群");
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "invoked", progress: 1 },
+        }),
+      );
+    });
+    expect(screen.getByRole("heading", { name: "选择目标肌群" })).toBeInTheDocument();
   });
 
   it("presents the local-first primary action when no plan exists", async () => {

@@ -18,6 +18,10 @@ import { EquipmentArtwork } from "./EquipmentArtwork";
 import { ExercisePreviewDialog } from "./ExercisePreviewDialog";
 import { MuscleBodyMap } from "./MuscleBodyMap";
 import {
+  NESTED_PREDICTIVE_BACK_EVENT,
+  isPredictiveBackEvent,
+} from "../../native/predictive-back";
+import {
   difficultyLabels,
   equipmentChoices,
   equipmentLabels,
@@ -60,6 +64,8 @@ export function ExerciseBrowser({
   const [muscles, setMuscles] = useState<OriginalMuscleId[]>([]);
   const [preview, setPreview] = useState<BrowsableExercise | null>(null);
   const [backGestureProgress, setBackGestureProgress] = useState(0);
+  const [previewBackGestureProgress, setPreviewBackGestureProgress] =
+    useState(0);
 
   const exerciseMuscleGroups = useMemo(
     () => mapOriginalMusclesToExerciseGroups(muscles),
@@ -167,6 +173,39 @@ export function ExerciseBrowser({
   }, [onBackAvailabilityChange, preview, step]);
 
   const previousStep = getPreviousStep(step);
+
+  useEffect(() => {
+    function handleNativePredictiveBack(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!isPredictiveBackEvent(detail)) return;
+
+      if (preview) {
+        if (detail.type === "started" || detail.type === "progress") {
+          setPreviewBackGestureProgress(detail.progress);
+        } else {
+          setPreviewBackGestureProgress(0);
+        }
+        return;
+      }
+
+      if (detail.type === "started" || detail.type === "progress") {
+        setBackGestureProgress(detail.progress);
+        return;
+      }
+
+      setBackGestureProgress(0);
+    }
+
+    window.addEventListener(
+      NESTED_PREDICTIVE_BACK_EVENT,
+      handleNativePredictiveBack,
+    );
+    return () =>
+      window.removeEventListener(
+        NESTED_PREDICTIVE_BACK_EVENT,
+        handleNativePredictiveBack,
+      );
+  }, [preview]);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     event.stopPropagation();
@@ -385,8 +424,12 @@ export function ExerciseBrowser({
       {preview ? (
         <ExercisePreviewDialog
           exercise={preview}
+          backGestureProgress={previewBackGestureProgress}
           isSelected={selectedExerciseIds.includes(preview.id)}
-          onClose={() => setPreview(null)}
+          onClose={() => {
+            setPreviewBackGestureProgress(0);
+            setPreview(null);
+          }}
           onAdd={() => {
             onExerciseSelect(preview);
             setPreview(null);
