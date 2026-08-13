@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -50,6 +51,7 @@ gsap.registerPlugin(useGSAP);
 type AppScreen = "home" | "plan-builder" | "today" | "workout";
 type ReminderUiState = ReminderPermissionState | "checking" | "error";
 type ReminderDeliveryState = "idle" | "syncing" | "ready" | "degraded";
+type WorkoutExitDialog = "exit" | "save" | null;
 
 interface ReminderReadiness {
   notification: ReminderUiState;
@@ -70,6 +72,15 @@ export function App({
   interactionFeedback = defaultInteractionFeedback,
 }: AppProps) {
   const appRef = useRef<HTMLDivElement>(null);
+  const nestedBackHandlerRef = useRef<(() => boolean) | null>(null);
+  const nestedBackAvailableRef = useRef(false);
+  const requestBackRef = useRef<() => void>(() => undefined);
+  const edgeGestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+  } | null>(null);
   const [screen, setScreen] = useState<AppScreen>("home");
   const [activePlan, setActivePlan] = useState<StoredPlan | null>(null);
   const [planDraft, setPlanDraft] = useState<PlanDraft | null>(null);
@@ -86,6 +97,9 @@ export function App({
   const [reminderDelivery, setReminderDelivery] =
     useState<ReminderDeliveryState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [workoutExitDialog, setWorkoutExitDialog] =
+    useState<WorkoutExitDialog>(null);
+  const [backGestureProgress, setBackGestureProgress] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -172,6 +186,27 @@ export function App({
       void removeForegroundListener?.();
     };
   }, [hasHydrated, services]);
+
+  useEffect(() => {
+    let ignore = false;
+    let removeBackListener: (() => void | Promise<void>) | undefined;
+
+    void services.navigation
+      .onBackButton(() => requestBackRef.current())
+      .then((remove) => {
+        if (ignore) {
+          void remove();
+        } else {
+          removeBackListener = remove;
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      ignore = true;
+      void removeBackListener?.();
+    };
+  }, [services]);
 
   useGSAP(
     () => {
@@ -317,6 +352,93 @@ export function App({
 
   const showingWorkout = screen === "workout" && workout !== null;
 
+  function requestBack() {
+    if (workoutExitDialog === "save") {
+      setWorkoutExitDialog("exit");
+      return;
+    }
+    if (workoutExitDialog === "exit") {
+      setWorkoutExitDialog(null);
+      return;
+    }
+    if (nestedBackHandlerRef.current?.()) return;
+    if (dismissFocusedTextInput()) return;
+
+    if (showingWorkout) {
+      setWorkoutExitDialog("exit");
+      return;
+    }
+    if (screen === "plan-builder") {
+      setScreen(activePlan ? "today" : "home");
+      return;
+    }
+    void services.navigation.exitApp().catch(() => undefined);
+  }
+
+  useEffect(() => {
+    requestBackRef.current = requestBack;
+  });
+
+  async function endWorkout(save: boolean) {
+    if (!workout || isBusy) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      await services.workouts.end(workout.id, { save });
+      setWorkout(null);
+      setWorkoutExitDialog(null);
+      setScreen(activePlan ? "today" : "home");
+    } catch {
+      setError("训练状态未能结束，请稍后重试。");
+      setWorkoutExitDialog(null);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (
+      event.pointerType === "mouse" ||
+      event.clientX > 24 ||
+      nestedBackAvailableRef.current
+    ) {
+      return;
+    }
+    edgeGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const gesture = edgeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const deltaX = Math.max(0, event.clientX - gesture.startX);
+    const deltaY = event.clientY - gesture.startY;
+    if (!gesture.active && Math.abs(deltaY) > deltaX) {
+      edgeGestureRef.current = null;
+      return;
+    }
+    if (!gesture.active && deltaX < 8) return;
+
+    gesture.active = true;
+    if ("setPointerCapture" in event.currentTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    setBackGestureProgress(Math.min(1, deltaX / (window.innerWidth * 0.32)));
+  }
+
+  function finishEdgeGesture(event: ReactPointerEvent<HTMLDivElement>) {
+    const gesture = edgeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    edgeGestureRef.current = null;
+    const shouldGoBack = gesture.active && backGestureProgress >= 0.35;
+    setBackGestureProgress(0);
+    if (shouldGoBack) requestBack();
+  }
+
   function handleInteractionClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (!(event.target instanceof Element)) return;
     const control = event.target.closest(
@@ -329,10 +451,23 @@ export function App({
 
   return (
     <div
-      className={showingWorkout ? "app-workout-host" : "app"}
+      className={`${showingWorkout ? "app-workout-host" : "app"} app-back-gesture`}
       ref={appRef}
       onClickCapture={handleInteractionClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishEdgeGesture}
+      onPointerCancel={finishEdgeGesture}
     >
+      {backGestureProgress > 0 ? (
+        <BackGesturePreview screen={screen} plan={activePlan} />
+      ) : null}
+      <div
+        className="app-back-gesture__current"
+        style={{
+          transform: `translateX(${Math.round(backGestureProgress * 100)}%)`,
+        }}
+      >
       <a className="skip-link" href="#main-content">
         跳到主要内容
       </a>
@@ -371,7 +506,13 @@ export function App({
                 existingDraft={activePlan?.draft ?? null}
                 initialMode={activePlan?.draft.source.kind ?? "generated"}
                 isBusy={isBusy}
-                onBack={() => setScreen(activePlan ? "today" : "home")}
+                onBack={requestBack}
+                onNestedBackRequestChange={(handler) => {
+                  nestedBackHandlerRef.current = handler;
+                }}
+                onNestedBackAvailabilityChange={(available) => {
+                  nestedBackAvailableRef.current = available;
+                }}
                 onGenerated={setPlanDraft}
                 onManualCreated={(draft) => void savePlan(draft)}
                 onSave={() => void savePlan()}
@@ -403,6 +544,123 @@ export function App({
           </footer>
         </>
       )}
+      </div>
+      {workoutExitDialog ? (
+        <WorkoutExitConfirmation
+          isBusy={isBusy}
+          step={workoutExitDialog}
+          completedSets={workout?.performedSets.length ?? 0}
+          onCancel={() => setWorkoutExitDialog(null)}
+          onContinueToSave={() => setWorkoutExitDialog("save")}
+          onEnd={(save) => void endWorkout(save)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function BackGesturePreview({
+  screen,
+  plan,
+}: {
+  screen: AppScreen;
+  plan: StoredPlan | null;
+}) {
+  const target =
+    screen === "workout" || screen === "plan-builder"
+      ? plan
+        ? "today"
+        : "home"
+      : null;
+  if (!target) return null;
+
+  return (
+    <div className="app-back-gesture__preview" aria-hidden="true" inert>
+      {target === "home" ? <LandingScreen onCreate={() => undefined} /> : null}
+      {target === "today" && plan ? (
+        <TodayScreen
+          plan={plan}
+          isBusy={false}
+          isReminderBusy={false}
+          reminderDelivery="idle"
+          reminderReadiness={{ notification: "unsupported", exactAlarm: "unsupported" }}
+          selectedDayIndex={0}
+          onEdit={() => undefined}
+          onEnableReminders={() => undefined}
+          onSelectDay={() => undefined}
+          onStart={() => undefined}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function WorkoutExitConfirmation({
+  step,
+  completedSets,
+  isBusy,
+  onCancel,
+  onContinueToSave,
+  onEnd,
+}: {
+  step: Exclude<WorkoutExitDialog, null>;
+  completedSets: number;
+  isBusy: boolean;
+  onCancel: () => void;
+  onContinueToSave: () => void;
+  onEnd: (save: boolean) => void;
+}) {
+  const isSaveStep = step === "save";
+
+  return (
+    <div className="app-dialog-backdrop" role="presentation">
+      <section
+        className="app-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workout-exit-title"
+      >
+        <p className="app-dialog__eyebrow">训练进行中</p>
+        <h2 id="workout-exit-title">
+          {isSaveStep ? "保存本次训练数据？" : "结束本次训练？"}
+        </h2>
+        <p>
+          {isSaveStep
+            ? `本次已完成 ${completedSets} 组。保存后会保留为“提前结束”的训练记录。`
+            : "训练将停止，休息倒计时也会一并取消。"}
+        </p>
+        <div className="app-dialog__actions">
+          {isSaveStep ? (
+            <>
+              <button type="button" disabled={isBusy} onClick={() => onEnd(false)}>
+                不保存
+              </button>
+              <button
+                className="app-dialog__primary"
+                type="button"
+                disabled={isBusy}
+                onClick={() => onEnd(true)}
+              >
+                保存训练记录
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" disabled={isBusy} onClick={onCancel}>
+                继续训练
+              </button>
+              <button
+                className="app-dialog__primary"
+                type="button"
+                disabled={isBusy}
+                onClick={onContinueToSave}
+              >
+                结束训练
+              </button>
+            </>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -474,6 +732,8 @@ function PlanBuilderScreen({
   initialMode,
   isBusy,
   onBack,
+  onNestedBackRequestChange,
+  onNestedBackAvailabilityChange,
   onGenerated,
   onManualCreated,
   onSave,
@@ -483,6 +743,8 @@ function PlanBuilderScreen({
   initialMode: PlanDraft["source"]["kind"];
   isBusy: boolean;
   onBack: () => void;
+  onNestedBackRequestChange: (handler: (() => boolean) | null) => void;
+  onNestedBackAvailabilityChange: (available: boolean) => void;
   onGenerated: (draft: GeneratedPlanDraft) => void;
   onManualCreated: (draft: Extract<PlanDraft, { source: { kind: "manual" } }>) => void;
   onSave: () => void;
@@ -549,6 +811,8 @@ function PlanBuilderScreen({
             }
             isSubmitting={isBusy}
             onPlanCreated={onManualCreated}
+            onBrowserBackRequestChange={onNestedBackRequestChange}
+            onBrowserBackAvailabilityChange={onNestedBackAvailabilityChange}
           />
         </div>
       )}
@@ -580,6 +844,22 @@ function isGeneratedPlanDraft(
   draft: PlanDraft | null,
 ): draft is GeneratedPlanDraft {
   return draft?.source.kind === "generated";
+}
+
+function dismissFocusedTextInput(): boolean {
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLTextAreaElement ||
+    active instanceof HTMLSelectElement ||
+    active instanceof HTMLInputElement &&
+      !["button", "checkbox", "radio", "range", "submit"].includes(active.type)
+  ) {
+    active.blur();
+    return true;
+  }
+  return active instanceof HTMLElement && active.isContentEditable
+    ? (active.blur(), true)
+    : false;
 }
 
 function TodayScreen({

@@ -25,11 +25,17 @@ export interface AppLifecycleServices {
   onForeground(listener: () => void): Promise<() => void | Promise<void>>;
 }
 
+export interface AppNavigationServices {
+  onBackButton(listener: () => void): Promise<() => void | Promise<void>>;
+  exitApp(): Promise<void>;
+}
+
 export interface AppServices {
   plans: Pick<PlanRepository, "getActive" | "saveActive">;
-  workouts: Pick<WorkoutRepository, "apply" | "recoverActive" | "start">;
+  workouts: Pick<WorkoutRepository, "apply" | "end" | "recoverActive" | "start">;
   reminders: AppReminderServices;
   lifecycle: AppLifecycleServices;
+  navigation: AppNavigationServices;
   now: () => number;
   createId: () => string;
 }
@@ -69,6 +75,13 @@ export const defaultAppServices: AppServices = {
       );
       return () => handle.remove();
     },
+  },
+  navigation: {
+    onBackButton: async (listener) => {
+      const handle = await CapacitorApp.addListener("backButton", listener);
+      return () => handle.remove();
+    },
+    exitApp: () => CapacitorApp.exitApp(),
   },
   now: Date.now,
   createId: () => crypto.randomUUID(),

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -143,6 +143,48 @@ describe("ExerciseBrowser", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("previews the previous step from the 24px left edge and only navigates after a completed swipe", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ExerciseBrowser exercises={exercises} onExerciseSelect={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "徒手" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    const browser = container.querySelector(".exercise-browser");
+    if (!browser) throw new Error("Exercise browser was not rendered");
+    fireEvent.pointerDown(browser, {
+      pointerType: "touch",
+      pointerId: 1,
+      clientX: 12,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(browser, {
+      pointerType: "touch",
+      pointerId: 1,
+      clientX: 180,
+      clientY: 200,
+    });
+
+    expect(
+      container.querySelector(".exercise-browser__back-preview h3"),
+    ).toHaveTextContent("选择目标肌群");
+
+    fireEvent.pointerUp(browser, {
+      pointerType: "touch",
+      pointerId: 1,
+      clientX: 180,
+      clientY: 200,
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "选择目标肌群" }),
+    ).toBeInTheDocument();
   });
 
   it("closes an exercise preview and sends the selected exercise to the caller", async () => {

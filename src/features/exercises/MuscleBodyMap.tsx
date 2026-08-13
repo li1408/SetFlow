@@ -12,7 +12,6 @@ import { ShouldersGroup } from "./original-muscles/shoulders-group";
 import { TrapsGroup } from "./original-muscles/traps-group";
 import { TricepsGroup } from "./original-muscles/triceps-group";
 import {
-  OriginalMuscle,
   originalMuscleChoices,
   originalMuscleLabels,
   type OriginalMuscleId,

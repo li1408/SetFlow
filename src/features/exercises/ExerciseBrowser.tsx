@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
@@ -30,18 +37,29 @@ export interface ExerciseBrowserProps {
   exercises: readonly BrowsableExercise[];
   selectedExerciseIds?: readonly string[];
   onExerciseSelect: (exercise: BrowsableExercise) => void;
+  onBackRequestChange?: (handler: (() => boolean) | null) => void;
+  onBackAvailabilityChange?: (available: boolean) => void;
 }
 
 export function ExerciseBrowser({
   exercises,
   selectedExerciseIds = [],
   onExerciseSelect,
+  onBackRequestChange,
+  onBackAvailabilityChange,
 }: ExerciseBrowserProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const edgeGestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+  } | null>(null);
   const [step, setStep] = useState<BrowserStep>("equipment");
   const [equipment, setEquipment] = useState<ExerciseEquipmentFilter[]>([]);
   const [muscles, setMuscles] = useState<OriginalMuscleId[]>([]);
   const [preview, setPreview] = useState<BrowsableExercise | null>(null);
+  const [backGestureProgress, setBackGestureProgress] = useState(0);
 
   const exerciseMuscleGroups = useMemo(
     () => mapOriginalMusclesToExerciseGroups(muscles),
@@ -122,8 +140,98 @@ export function ExerciseBrowser({
     });
   }
 
+  const handleBackRequest = useCallback(() => {
+    if (preview) {
+      setPreview(null);
+      return true;
+    }
+    if (step === "exercises") {
+      setStep("muscles");
+      return true;
+    }
+    if (step === "muscles") {
+      setStep("equipment");
+      return true;
+    }
+    return false;
+  }, [preview, step]);
+
+  useEffect(() => {
+    onBackRequestChange?.(handleBackRequest);
+    return () => onBackRequestChange?.(null);
+  }, [handleBackRequest, onBackRequestChange]);
+
+  useEffect(() => {
+    onBackAvailabilityChange?.(step !== "equipment" || preview !== null);
+    return () => onBackAvailabilityChange?.(false);
+  }, [onBackAvailabilityChange, preview, step]);
+
+  const previousStep = getPreviousStep(step);
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    if (event.pointerType === "mouse" || event.clientX > 24 || !previousStep || preview) {
+      return;
+    }
+    edgeGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    const gesture = edgeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const deltaX = Math.max(0, event.clientX - gesture.startX);
+    const deltaY = event.clientY - gesture.startY;
+    if (!gesture.active && Math.abs(deltaY) > deltaX) {
+      edgeGestureRef.current = null;
+      return;
+    }
+    if (!gesture.active && deltaX < 8) return;
+
+    gesture.active = true;
+    if ("setPointerCapture" in event.currentTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    setBackGestureProgress(Math.min(1, deltaX / (window.innerWidth * 0.32)));
+  }
+
+  function finishEdgeGesture(event: ReactPointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    const gesture = edgeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    edgeGestureRef.current = null;
+    const shouldGoBack = gesture.active && backGestureProgress >= 0.35;
+    setBackGestureProgress(0);
+    if (shouldGoBack && previousStep) setStep(previousStep);
+  }
+
   return (
-    <div className="exercise-browser" ref={rootRef}>
+    <div
+      className="exercise-browser"
+      ref={rootRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishEdgeGesture}
+      onPointerCancel={finishEdgeGesture}
+    >
+      {backGestureProgress > 0 && previousStep ? (
+        <ExerciseStepPreview
+          equipment={equipment}
+          equipmentCompatible={equipmentCompatible}
+          exercises={exercises}
+          muscles={muscles}
+          step={previousStep}
+        />
+      ) : null}
+      <div
+        className="exercise-browser__current"
+        style={{ transform: `translateX(${Math.round(backGestureProgress * 100)}%)` }}
+      >
       <ol className="exercise-browser__stepper" aria-label="动作选择进度">
         <StepIndicator current={step} id="equipment" number="01" label="设备" />
         <StepIndicator current={step} id="muscles" number="02" label="肌群" />
@@ -245,7 +353,7 @@ export function ExerciseBrowser({
           <button
             className="exercise-browser__back"
             type="button"
-            onClick={() => setStep(step === "exercises" ? "muscles" : "equipment")}
+            onClick={handleBackRequest}
           >
             <ArrowLeft aria-hidden="true" size={17} />
             上一步
@@ -275,6 +383,77 @@ export function ExerciseBrowser({
           }}
         />
       ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ExerciseStepPreview({
+  step,
+  exercises,
+  equipment,
+  muscles,
+  equipmentCompatible,
+}: {
+  step: Exclude<BrowserStep, "exercises">;
+  exercises: readonly BrowsableExercise[];
+  equipment: ExerciseEquipmentFilter[];
+  muscles: OriginalMuscleId[];
+  equipmentCompatible: readonly BrowsableExercise[];
+}) {
+  return (
+    <div className="exercise-browser__back-preview" aria-hidden="true" inert>
+      {step === "equipment" ? (
+        <>
+          <header className="exercise-browser__heading">
+            <p>第一步 · 可多选</p>
+            <h3>选择设备</h3>
+            <span>只展示你现在能完成的动作。</span>
+          </header>
+          <div className="exercise-browser__choice-grid">
+            {equipmentChoices.map((choice) => {
+              const count = exercises.filter((exercise) =>
+                choice.id === "bodyweight"
+                  ? exercise.requiredEquipment.length === 0
+                  : exercise.requiredEquipment.includes(choice.id),
+              ).length;
+              return (
+                <div className="exercise-browser__choice" key={choice.id}>
+                  <EquipmentArtwork equipment={choice.id} label={choice.label} />
+                  <span className="exercise-browser__choice-copy">
+                    <strong>{choice.label}</strong>
+                    <small>{count === 0 ? "后续加入" : choice.description}</small>
+                  </span>
+                  <span className="exercise-browser__choice-state">
+                    {equipment.includes(choice.id) ? <Check size={14} /> : count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <header className="exercise-browser__heading">
+            <p>第二步 · 可多选</p>
+            <h3>选择目标肌群</h3>
+            <span>根据已选设备，聚焦今天想练的位置。</span>
+          </header>
+          <MuscleBodyMap
+            options={originalMuscleChoices.map((choice) => ({
+              id: choice.id,
+              label: choice.label,
+              count: filterExercises(equipmentCompatible, {
+                equipment,
+                muscles: [...choice.exerciseGroups],
+              }).length,
+              selected: muscles.includes(choice.id),
+              disabled: false,
+            }))}
+            onToggle={() => undefined}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -297,4 +476,10 @@ function StepIndicator({ current, id, number, label }: StepIndicatorProps) {
       <strong>{label}</strong>
     </li>
   );
+}
+
+function getPreviousStep(step: BrowserStep): Exclude<BrowserStep, "exercises"> | null {
+  if (step === "exercises") return "muscles";
+  if (step === "muscles") return "equipment";
+  return null;
 }

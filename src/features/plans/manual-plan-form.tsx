@@ -134,12 +134,16 @@ export interface ManualPlanFormProps {
   initialPlan?: ManualPlanDraft;
   isSubmitting?: boolean;
   onPlanCreated: (plan: ManualPlanDraft) => void;
+  onBrowserBackRequestChange?: (handler: (() => boolean) | null) => void;
+  onBrowserBackAvailabilityChange?: (available: boolean) => void;
 }
 
 export function ManualPlanForm({
   initialPlan,
   isSubmitting = false,
   onPlanCreated,
+  onBrowserBackRequestChange,
+  onBrowserBackAvailabilityChange,
 }: ManualPlanFormProps) {
   const titleId = useId();
   const errorId = useId();
@@ -268,6 +272,8 @@ export function ManualPlanForm({
             onExerciseSelect={(exercise) =>
               setExerciseSelected(exercise, true)
             }
+            onBackRequestChange={onBrowserBackRequestChange}
+            onBackAvailabilityChange={onBrowserBackAvailabilityChange}
           />
         </section>
 
