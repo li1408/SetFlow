@@ -45,6 +45,26 @@ body {
   color: var(--color-text);
 }
 
+input,
+select,
+textarea {
+  color-scheme: dark;
+  background: var(--color-surface);
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+}
+
+select option,
+select optgroup {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+select option:checked {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
 button,
 a {
   font: inherit;
