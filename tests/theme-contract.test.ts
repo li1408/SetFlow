@@ -62,9 +62,9 @@ describe("SetFlow theme contract", () => {
     const packageJson = readRepoFile("package.json");
 
     expect(manifest).toContain('android:enableOnBackInvokedCallback="true"');
-    expect(appBuild).toContain("versionCode 7");
-    expect(appBuild).toContain('versionName "0.1.6"');
-    expect(packageJson).toContain('"version": "0.1.6"');
+    expect(appBuild).toContain("versionCode 8");
+    expect(appBuild).toContain('versionName "0.1.7"');
+    expect(packageJson).toContain('"version": "0.1.7"');
   });
 
   it("keeps the system back callback owned by MainActivity after Capacitor starts", () => {

@@ -7,6 +7,56 @@ import { ExercisePreviewDialog } from "./ExercisePreviewDialog";
 afterEach(cleanup);
 
 describe("ExercisePreviewDialog", () => {
+  it("shows an offline two-step preview for catalog exercises", async () => {
+    const exercise = builtInExerciseCatalog.find(
+      (item) => item.id === "bodyweight-squat",
+    );
+    if (!exercise) throw new Error("Squat exercise fixture is missing");
+
+    const user = userEvent.setup();
+    render(
+      <ExercisePreviewDialog
+        exercise={exercise}
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelectorAll(".exercise-preview__frame")).toHaveLength(2);
+    expect(screen.getByText("Exercise data by RepDB (repdb.co)")).toBeInTheDocument();
+
+    const mediaButton = screen.getByRole("button", {
+      name: "暂停徒手深蹲动作演示",
+    });
+    await user.click(mediaButton);
+
+    expect(
+      screen.getByRole("button", { name: "播放徒手深蹲动作演示" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an exact still preview without adding a playback control", () => {
+    const exercise = builtInExerciseCatalog.find(
+      (item) => item.id === "single-leg-glute-bridge",
+    );
+    if (!exercise) throw new Error("Glute bridge exercise fixture is missing");
+
+    render(
+      <ExercisePreviewDialog
+        exercise={exercise}
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("img", { name: "单腿臀桥 · 顶端姿势" }),
+    ).toHaveAttribute("src", "/media/exercises/single-leg-glute-bridge.jpg");
+    expect(
+      screen.queryByRole("button", { name: /单腿臀桥动作演示/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the pull-up sample as a muted looping offline video", () => {
     const exercise = builtInExerciseCatalog.find(
       (item) => item.id === "overhand-pull-up",

@@ -110,26 +110,6 @@ export function ExerciseBrowser({
     { scope: rootRef, dependencies: [step], revertOnUpdate: true },
   );
 
-  useGSAP(
-    () => {
-      if (!preview) return;
-      const media = gsap.matchMedia();
-      media.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          ".js-exercise-preview",
-          { autoAlpha: 0, y: 18 },
-          { autoAlpha: 1, y: 0, duration: 0.3, ease: "power2.out" },
-        );
-      });
-      return () => media.revert();
-    },
-    {
-      scope: rootRef,
-      dependencies: [preview?.id],
-      revertOnUpdate: true,
-    },
-  );
-
   function toggleEquipment(id: ExerciseEquipmentFilter) {
     setEquipment((current) =>
       current.includes(id)
