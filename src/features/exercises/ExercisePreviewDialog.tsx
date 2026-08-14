@@ -1,6 +1,6 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Play, X } from "lucide-react";
+import { Check, Pause, Play, X } from "lucide-react";
 import type { BrowsableExercise } from "../../domain/exercises/exercise-filter";
 import {
   difficultyLabels,
@@ -26,6 +26,8 @@ export function ExercisePreviewDialog({
 }: ExercisePreviewDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const closeFromEffect = useEffectEvent(onClose);
 
   useEffect(() => {
@@ -83,6 +85,18 @@ export function ExercisePreviewDialog({
       : exercise.requiredEquipment.map((item) => equipmentLabels[item]).join("、");
 
   const clampedProgress = Math.min(1, Math.max(0, backGestureProgress));
+  const hasPullUpSample = exercise.id === "overhand-pull-up";
+
+  const toggleVideoPlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      void video.play().catch(() => setIsVideoPlaying(false));
+    } else {
+      video.pause();
+    }
+  };
 
   return createPortal(
     <div
@@ -126,16 +140,50 @@ export function ExercisePreviewDialog({
           </button>
         </header>
 
-        <div className="exercise-preview__media" aria-label="动作视频占位">
-          <span className="exercise-preview__media-code" aria-hidden="true">
-            {exercise.movement.toUpperCase()}
-          </span>
-          <span className="exercise-preview__play" aria-hidden="true">
-            <Play size={24} fill="currentColor" />
-          </span>
-          <p>离线动作示范</p>
-          <small>视频素材将在下一增量接入</small>
-        </div>
+        {hasPullUpSample ? (
+          <button
+            className="exercise-preview__media exercise-preview__media--video"
+            type="button"
+            aria-label={`${isVideoPlaying ? "暂停" : "播放"}${exercise.name}动作演示`}
+            onClick={toggleVideoPlayback}
+          >
+            <video
+              ref={videoRef}
+              aria-hidden="true"
+              autoPlay
+              loop
+              muted
+              playsInline
+              poster="/media/exercises/overhand-pull-up-poster.jpg"
+              preload="auto"
+              onPause={() => setIsVideoPlaying(false)}
+              onPlay={() => setIsVideoPlaying(true)}
+            >
+              <source
+                src="/media/exercises/overhand-pull-up.webm"
+                type="video/webm"
+              />
+            </video>
+            <span className="exercise-preview__media-status">
+              离线 · 自动循环
+            </span>
+            <span className="exercise-preview__media-control" aria-hidden="true">
+              {isVideoPlaying ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
+              {isVideoPlaying ? "暂停" : "继续"}
+            </span>
+          </button>
+        ) : (
+          <div className="exercise-preview__media" aria-label="动作视频占位">
+            <span className="exercise-preview__media-code" aria-hidden="true">
+              {exercise.movement.toUpperCase()}
+            </span>
+            <span className="exercise-preview__play" aria-hidden="true">
+              <Play size={24} fill="currentColor" />
+            </span>
+            <p>离线动作示范</p>
+            <small>视频素材将在下一增量接入</small>
+          </div>
+        )}
 
         <div className="exercise-preview__badges" aria-label="动作属性">
           <span>{difficultyLabels[exercise.difficulty]}</span>
