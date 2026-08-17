@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CapacitorVibrationAdapter,
   ForegroundRestAlert,
+  RepeatingForegroundRestAlert,
   WebAudioBeepAdapter,
 } from "./foreground-rest-alert";
 
@@ -21,6 +22,25 @@ describe("ForegroundRestAlert", () => {
       beep: "failed",
       vibration: "played",
     });
+  });
+});
+
+describe("RepeatingForegroundRestAlert", () => {
+  it("repeats the foreground alert until it is manually stopped", async () => {
+    vi.useFakeTimers();
+    const notify = vi.fn(async () => undefined);
+    const alert = new RepeatingForegroundRestAlert({ notifyRestEnded: notify });
+
+    alert.start();
+    await Promise.resolve();
+    expect(notify).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(notify).toHaveBeenCalledTimes(2);
+
+    alert.stop();
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(notify).toHaveBeenCalledTimes(2);
   });
 });
 

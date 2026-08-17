@@ -6,6 +6,7 @@ import { CapacitorReminderAdapter } from "../native/capacitor-reminder-adapter";
 import {
   CapacitorVibrationAdapter,
   ForegroundRestAlert,
+  RepeatingForegroundRestAlert,
   WebAudioBeepAdapter,
 } from "../native/foreground-rest-alert";
 import type { ReminderPermissionState } from "../native/reminder-adapter";
@@ -18,7 +19,8 @@ export interface AppReminderServices {
   checkExactAlarmSetting(): Promise<ReminderPermissionState>;
   openExactAlarmSetting(): Promise<ReminderPermissionState>;
   flush(): Promise<ReminderSyncResult>;
-  notifyRestEnded(): Promise<void>;
+  startRestEndedAlert(): void;
+  stopRestEndedAlert(): void;
 }
 
 export interface AppLifecycleServices {
@@ -51,6 +53,9 @@ const foregroundRestAlert = new ForegroundRestAlert(
   new WebAudioBeepAdapter(),
   new CapacitorVibrationAdapter(),
 );
+const repeatingForegroundRestAlert = new RepeatingForegroundRestAlert(
+  foregroundRestAlert,
+);
 
 export const defaultAppServices: AppServices = {
   plans: new PlanRepository(database),
@@ -61,9 +66,8 @@ export const defaultAppServices: AppServices = {
     checkExactAlarmSetting: () => reminderAdapter.checkExactAlarmSetting(),
     openExactAlarmSetting: () => reminderAdapter.openExactAlarmSetting(),
     flush: () => reminderCoordinator.flush(),
-    notifyRestEnded: async () => {
-      await foregroundRestAlert.notifyRestEnded();
-    },
+    startRestEndedAlert: () => repeatingForegroundRestAlert.start(),
+    stopRestEndedAlert: () => repeatingForegroundRestAlert.stop(),
   },
   lifecycle: {
     onForeground: async (listener) => {

@@ -40,6 +40,7 @@ describe("workout state machine", () => {
         kind: "active_set",
         position: { exerciseIndex: 0, setIndex: 0 },
       });
+      expect(result.state.activeExerciseStartedAt).toBe(1_000);
       expect(result.facts).toEqual([{ type: "WORKOUT_STARTED" }]);
     }
   });
@@ -110,6 +111,7 @@ describe("workout state machine", () => {
       facts: [{ type: "REST_FINISHED", timerId: "rest-1" }],
     });
     if (elapsed.kind === "changed") {
+      expect(elapsed.state.activeExerciseStartedAt).toBe(1_000);
       expect(
         transitionWorkout(elapsed.state, {
           type: "rest_elapsed",
@@ -119,6 +121,56 @@ describe("workout state machine", () => {
         }),
       ).toMatchObject({ kind: "noop", reason: "STALE_TIMER" });
     }
+  });
+
+  it("starts a fresh action timer when rest advances to another exercise", () => {
+    const firstExerciseCompleted = transitionWorkout(createRestingSession(), {
+      type: "rest_elapsed",
+      timerId: "rest-1",
+      expectedRevision: 0,
+      at: 62_000,
+    });
+    if (firstExerciseCompleted.kind !== "changed") {
+      throw new Error("rest did not finish");
+    }
+
+    const secondSetActive = transitionWorkout(firstExerciseCompleted.state, {
+      type: "activate_next_set",
+      expectedPosition: { exerciseIndex: 0, setIndex: 1 },
+    });
+    if (secondSetActive.kind !== "changed") {
+      throw new Error("second set did not activate");
+    }
+
+    const completedSecondSet = transitionWorkout(secondSetActive.state, {
+      type: "complete_set",
+      expectedPosition: { exerciseIndex: 0, setIndex: 1 },
+      performedSetId: "performed-2",
+      restTimerId: "rest-2",
+      at: 70_000,
+      actual: { kind: "reps", reps: 10, additionalWeightKg: null },
+    });
+    if (completedSecondSet.kind !== "changed") {
+      throw new Error("second set did not complete");
+    }
+
+    const nextExerciseReady = transitionWorkout(completedSecondSet.state, {
+      type: "rest_elapsed",
+      timerId: "rest-2",
+      expectedRevision: 0,
+      at: 130_000,
+    });
+
+    expect(nextExerciseReady).toMatchObject({
+      kind: "changed",
+      state: {
+        activeExerciseStartedAt: 130_000,
+        phase: {
+          kind: "next_set_ready",
+          position: { exerciseIndex: 1, setIndex: 0 },
+        },
+      },
+    });
   });
 
   it("reschedules rest from the current revision and rejects stale repeats", () => {

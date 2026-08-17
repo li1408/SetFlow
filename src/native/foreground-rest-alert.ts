@@ -35,6 +35,38 @@ export class ForegroundRestAlert {
   }
 }
 
+export interface RestEndedNotifier {
+  notifyRestEnded(): Promise<unknown>;
+}
+
+export class RepeatingForegroundRestAlert {
+  private intervalId: number | undefined;
+
+  constructor(
+    private readonly notifier: RestEndedNotifier,
+    private readonly intervalMilliseconds = 2_000,
+  ) {}
+
+  start(): void {
+    if (this.intervalId !== undefined) return;
+    this.notify();
+    this.intervalId = window.setInterval(
+      () => this.notify(),
+      this.intervalMilliseconds,
+    );
+  }
+
+  stop(): void {
+    if (this.intervalId === undefined) return;
+    window.clearInterval(this.intervalId);
+    this.intervalId = undefined;
+  }
+
+  private notify(): void {
+    void this.notifier.notifyRestEnded().catch(() => undefined);
+  }
+}
+
 export class WebAudioBeepAdapter implements BeepAdapter {
   constructor(
     private readonly createAudioContext: () => AudioContext | null =
@@ -60,7 +92,7 @@ export class WebAudioBeepAdapter implements BeepAdapter {
         oscillator.frequency.setValueAtTime(frequency, startedAt + offset);
         gain.gain.setValueAtTime(0.0001, startedAt + offset);
         gain.gain.exponentialRampToValueAtTime(
-          0.28,
+          0.62,
           startedAt + offset + 0.015,
         );
         gain.gain.exponentialRampToValueAtTime(

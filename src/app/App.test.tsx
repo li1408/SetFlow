@@ -378,7 +378,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("button", { name: "完成本组" }));
 
     await waitFor(() =>
-      expect(services.reminders.notifyRestEnded).toHaveBeenCalledOnce(),
+      expect(services.reminders.startRestEndedAlert).toHaveBeenCalledOnce(),
     );
     expect(vi.mocked(services.reminders.flush).mock.calls.length).toBeGreaterThan(
       initialFlushCount,
@@ -617,7 +617,8 @@ function createServices(): AppServices {
       checkExactAlarmSetting: vi.fn(async () => "unsupported" as const),
       openExactAlarmSetting: vi.fn(async () => "unsupported" as const),
       flush: vi.fn(async () => emptyReminderSyncResult()),
-      notifyRestEnded: vi.fn(async () => undefined),
+      startRestEndedAlert: vi.fn(),
+      stopRestEndedAlert: vi.fn(),
     },
     lifecycle: {
       onForeground: vi.fn(async () => () => undefined),

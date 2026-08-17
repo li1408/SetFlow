@@ -104,6 +104,7 @@ export function App({
   const [error, setError] = useState<string | null>(null);
   const [workoutExitDialog, setWorkoutExitDialog] =
     useState<WorkoutExitDialog>(null);
+  const [isRestEndedAlertActive, setIsRestEndedAlertActive] = useState(false);
   const [backGestureProgress, setBackGestureProgress] = useState(0);
 
   useEffect(() => {
@@ -336,7 +337,12 @@ export function App({
     setWorkout(transition.state);
     if (transition.kind === "changed") {
       if (transition.facts.some((fact) => fact.type === "REST_FINISHED")) {
-        void services.reminders.notifyRestEnded().catch(() => undefined);
+        setIsRestEndedAlertActive(true);
+        services.reminders.startRestEndedAlert();
+      }
+      if (event.type === "activate_next_set") {
+        setIsRestEndedAlertActive(false);
+        services.reminders.stopRestEndedAlert();
       }
       if (
         reminderReadiness.notification === "granted" &&
@@ -353,6 +359,11 @@ export function App({
       }
     }
     return transition;
+  }
+
+  function dismissRestEndedAlert() {
+    setIsRestEndedAlertActive(false);
+    services.reminders.stopRestEndedAlert();
   }
 
   const showingWorkout = screen === "workout" && workout !== null;
@@ -416,6 +427,7 @@ export function App({
     setIsBusy(true);
     setError(null);
     try {
+      dismissRestEndedAlert();
       await services.workouts.end(workout.id, { save });
       setWorkout(null);
       setWorkoutExitDialog(null);
@@ -516,9 +528,12 @@ export function App({
             session={workout}
             onEvent={handleWorkoutEvent}
             onFinish={() => {
+              dismissRestEndedAlert();
               setWorkout(null);
               setScreen(activePlan ? "today" : "home");
             }}
+            restEndedAlertActive={isRestEndedAlertActive}
+            onDismissRestEndedAlert={dismissRestEndedAlert}
           />
         </main>
       ) : (

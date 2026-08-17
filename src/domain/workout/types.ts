@@ -58,6 +58,7 @@ export interface WorkoutSession {
   phase: WorkoutPhase;
   performedSets: PerformedSet[];
   startedAt: number | null;
+  activeExerciseStartedAt?: number | null;
 }
 
 export type WorkoutEvent =

@@ -17,6 +17,7 @@ export function createWorkoutSession(
     phase: { kind: "idle" },
     performedSets: [],
     startedAt: null,
+    activeExerciseStartedAt: null,
   };
 }
 
@@ -38,6 +39,7 @@ export function transitionWorkout(
           position: { exerciseIndex: 0, setIndex: 0 },
         },
         startedAt: event.at,
+        activeExerciseStartedAt: event.at,
       },
       facts: [{ type: "WORKOUT_STARTED" }],
     };
@@ -144,12 +146,12 @@ export function transitionWorkout(
 
   if (event.type === "adjust_rest") {
     if (event.at >= state.phase.timer.endsAt) {
-      return finishRest(state);
+      return finishRest(state, event.at);
     }
 
     const endsAt = state.phase.timer.endsAt + event.deltaSeconds * 1_000;
     if (endsAt <= event.at) {
-      return finishRest(state);
+      return finishRest(state, event.at);
     }
 
     const timer = {
@@ -171,13 +173,20 @@ export function transitionWorkout(
   }
 
   if (event.type === "skip_rest") {
+    const nextPosition = state.phase.nextPosition;
     return {
       kind: "changed",
       state: {
         ...state,
+        activeExerciseStartedAt: startsNewExercise(
+          state.phase.completedPosition,
+          nextPosition,
+        )
+          ? event.at
+          : state.activeExerciseStartedAt,
         phase: {
           kind: "next_set_ready",
-          position: state.phase.nextPosition,
+          position: nextPosition,
         },
       },
       facts: [{ type: "REST_SKIPPED", timerId: state.phase.timer.id }],
@@ -188,7 +197,7 @@ export function transitionWorkout(
     return { kind: "noop", state, reason: "REST_NOT_DUE" };
   }
 
-  return finishRest(state);
+  return finishRest(state, event.at);
 }
 
 function getNextPosition(
@@ -215,7 +224,7 @@ function samePosition(left: WorkoutPosition, right: WorkoutPosition): boolean {
   );
 }
 
-function finishRest(state: WorkoutSession): WorkoutTransition {
+function finishRest(state: WorkoutSession, at: number): WorkoutTransition {
   if (state.phase.kind !== "resting") {
     return { kind: "noop", state, reason: "STALE_TIMER" };
   }
@@ -224,6 +233,12 @@ function finishRest(state: WorkoutSession): WorkoutTransition {
     kind: "changed",
     state: {
       ...state,
+      activeExerciseStartedAt: startsNewExercise(
+        state.phase.completedPosition,
+        state.phase.nextPosition,
+      )
+        ? at
+        : state.activeExerciseStartedAt,
       phase: {
         kind: "next_set_ready",
         position: state.phase.nextPosition,
@@ -231,6 +246,13 @@ function finishRest(state: WorkoutSession): WorkoutTransition {
     },
     facts: [{ type: "REST_FINISHED", timerId: state.phase.timer.id }],
   };
+}
+
+function startsNewExercise(
+  completedPosition: WorkoutPosition,
+  nextPosition: WorkoutPosition,
+): boolean {
+  return completedPosition.exerciseIndex !== nextPosition.exerciseIndex;
 }
 
 function rejected(

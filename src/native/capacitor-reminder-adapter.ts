@@ -74,7 +74,7 @@ export class CapacitorReminderAdapter implements ReminderAdapter {
       id: request.notificationId,
       title: request.title,
       body: request.body,
-      autoCancel: true,
+      autoCancel: false,
       schedule: { at: request.at, allowWhileIdle: true },
       extra: {
         kind: "rest-ended",

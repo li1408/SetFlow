@@ -82,6 +82,28 @@ describe("WorkoutExecutionScreen", () => {
     expect(screen.queryByLabelText("附加重量（千克）")).not.toBeInTheDocument();
   });
 
+  it("shows action and total timers alongside a stopped action preview", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(61_000);
+    const session = makeActiveSession();
+    session.snapshot.exercises[0]!.id = "bodyweight-squat";
+    session.startedAt = 1_000;
+    session.activeExerciseStartedAt = 31_000;
+
+    render(<WorkoutExecutionScreen session={session} onEvent={vi.fn()} />);
+
+    expect(screen.getByLabelText("当前动作已用时")).toHaveTextContent("00:30");
+    expect(screen.getByLabelText("训练累计时长")).toHaveTextContent("01:00");
+    expect(screen.getByRole("button", { name: "播放自重深蹲动作演示" })).toBeInTheDocument();
+
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(screen.getByLabelText("当前动作已用时")).toHaveTextContent("00:31");
+    expect(screen.getByLabelText("训练累计时长")).toHaveTextContent("01:01");
+  });
+
   it("shows absolute rest time and dispatches both adjustments and skip", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
@@ -260,6 +282,31 @@ describe("WorkoutExecutionScreen", () => {
       type: "activate_next_set",
       expectedPosition: { exerciseIndex: 0, setIndex: 1 },
     });
+  });
+
+  it("keeps the rest-ended alert visible until the user manually closes it", async () => {
+    const session = makeActiveSession();
+    session.phase = {
+      kind: "next_set_ready",
+      position: { exerciseIndex: 0, setIndex: 1 },
+    };
+    const onDismissRestEndedAlert = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <WorkoutExecutionScreen
+        session={session}
+        onEvent={vi.fn()}
+        restEndedAlertActive
+        onDismissRestEndedAlert={onDismissRestEndedAlert}
+      />,
+    );
+
+    expect(screen.getByTestId("rest-ended-feedback")).toHaveTextContent(
+      "休息结束",
+    );
+    await user.click(screen.getByRole("button", { name: "关闭提醒" }));
+    expect(onDismissRestEndedAlert).toHaveBeenCalledOnce();
   });
 
   it("summarizes a completed workout", () => {
