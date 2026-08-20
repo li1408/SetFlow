@@ -14,12 +14,6 @@ describe("ManualPlanForm", () => {
       screen.getByRole("form", { name: "手动创建计划" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("训练日名称")).toHaveValue("居家全身训练");
-    expect(
-      screen.getByRole("checkbox", { name: /徒手深蹲.*无需器械/ }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole("checkbox", { name: /正握引体向上.*需要：单杠/ }),
-    ).not.toBeChecked();
 
     const squatEditor = screen.getByRole("group", { name: "徒手深蹲设置" });
     expect(within(squatEditor).getByLabelText("组数")).toHaveValue(3);
@@ -34,8 +28,26 @@ describe("ManualPlanForm", () => {
     const user = userEvent.setup();
     render(<ManualPlanForm onPlanCreated={vi.fn()} />);
 
+    const exerciseBrowser = screen.getByRole("region", { name: "选择动作" });
     await user.click(
-      screen.getByRole("checkbox", { name: /前臂平板支撑.*无需器械/ }),
+      within(exerciseBrowser).getByRole("button", { name: "徒手" }),
+    );
+    await user.click(
+      within(exerciseBrowser).getByRole("button", { name: "继续" }),
+    );
+    await user.click(
+      within(exerciseBrowser).getByRole("button", { name: "选择腹肌" }),
+    );
+    await user.click(
+      within(exerciseBrowser).getByRole("button", { name: "继续" }),
+    );
+    await user.click(
+      within(exerciseBrowser).getByRole("button", {
+        name: "查看前臂平板支撑",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "添加前臂平板支撑" }),
     );
 
     const plankEditor = screen.getByRole("group", { name: "前臂平板支撑设置" });
@@ -98,9 +110,6 @@ describe("ManualPlanForm", () => {
     expect(
       screen.queryByRole("group", { name: "徒手深蹲设置" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("checkbox", { name: /徒手深蹲.*无需器械/ }),
-    ).not.toBeChecked();
 
     await user.click(screen.getByRole("button", { name: "保存手动计划" }));
 

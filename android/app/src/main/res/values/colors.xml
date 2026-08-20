@@ -4,4 +4,9 @@
     <color name="colorPrimaryDark">#11130F</color>
     <color name="colorAccent">#C8FF3D</color>
     <color name="setflow_canvas">#11130F</color>
+    <color name="setflow_surface">#191C17</color>
+    <color name="setflow_surface_raised">#20241D</color>
+    <color name="setflow_text">#F3F5EC</color>
+    <color name="setflow_muted">#9BA394</color>
+    <color name="setflow_border">#343A30</color>
 </resources>

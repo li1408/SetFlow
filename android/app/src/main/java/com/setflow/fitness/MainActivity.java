@@ -8,15 +8,50 @@ import android.media.RingtoneManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.activity.BackEventCompat;
+import androidx.activity.OnBackPressedCallback;
+
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.JSObject;
 
 public class MainActivity extends BridgeActivity {
     private static final String REST_CHANNEL_ID = "setflow-rest-timers";
+    private final OnBackPressedCallback predictiveBackCallback = new OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackStarted(BackEventCompat backEvent) {
+            emitPredictiveBack("started", backEvent.getProgress());
+        }
+
+        @Override
+        public void handleOnBackProgressed(BackEventCompat backEvent) {
+            emitPredictiveBack("progress", backEvent.getProgress());
+        }
+
+        @Override
+        public void handleOnBackCancelled() {
+            emitPredictiveBack("cancelled", 0);
+        }
+
+        @Override
+        public void handleOnBackPressed() {
+            emitPredictiveBack("invoked", 1);
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getOnBackPressedDispatcher().addCallback(this, predictiveBackCallback);
         ensureRestNotificationChannel();
+    }
+
+    private void emitPredictiveBack(String type, float progress) {
+        JSObject event = new JSObject();
+        event.put("type", type);
+        event.put("progress", progress);
+        JSObject payload = new JSObject();
+        payload.put("detail", event);
+        getBridge().triggerWindowJSEvent("setflowPredictiveBack", payload.toString());
     }
 
     private void ensureRestNotificationChannel() {

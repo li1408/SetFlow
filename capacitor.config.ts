@@ -11,6 +11,9 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
   },
   plugins: {
+    App: {
+      disableBackButtonHandler: true,
+    },
     LocalNotifications: {
       smallIcon: "ic_stat_setflow",
       iconColor: "#C8FF3D",

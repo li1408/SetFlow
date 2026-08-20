@@ -6,7 +6,7 @@ export const DATABASE_SCHEMA_VERSION = 1;
 export interface StoredWorkout {
   id: string;
   session: WorkoutSession;
-  status: "active" | "completed";
+  status: "active" | "completed" | "abandoned";
   activeSlot?: "active";
   createdAt: number;
   updatedAt: number;

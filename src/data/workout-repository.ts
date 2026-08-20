@@ -109,6 +109,41 @@ export class WorkoutRepository {
     return record ? parseWorkoutSession(record.session) : null;
   }
 
+  async end(workoutId: string, options: { save: boolean }): Promise<void> {
+    await this.database.transaction(
+      "rw",
+      this.database.workouts,
+      this.database.activeRestTimers,
+      this.database.reminderJobs,
+      async () => {
+        const record = await this.database.workouts.get(workoutId);
+        if (!record || record.activeSlot !== "active") {
+          throw new WorkoutNotFoundError(workoutId);
+        }
+
+        const activeRest = await this.getActiveRest(workoutId);
+        if (activeRest) {
+          await this.finishRest(activeRest.id, "skipped", this.now());
+          if (!options.save) {
+            await this.database.activeRestTimers.delete(activeRest.id);
+          }
+        }
+
+        if (options.save) {
+          const saved = {
+            ...record,
+            status: "abandoned" as const,
+            updatedAt: this.now(),
+          };
+          delete saved.activeSlot;
+          await this.database.workouts.put(saved);
+        } else {
+          await this.database.workouts.delete(workoutId);
+        }
+      },
+    );
+  }
+
   async getActiveRest(workoutId: string): Promise<StoredActiveRest | null> {
     const record = await this.database.activeRestTimers
       .where("activeSlot")

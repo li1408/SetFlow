@@ -141,7 +141,7 @@ describe("CapacitorReminderAdapter", () => {
           title: "休息结束",
           body: "准备开始下一组",
           channelId: SETFLOW_REST_CHANNEL_ID,
-          autoCancel: true,
+          autoCancel: false,
           schedule: { at: request.at, allowWhileIdle: true },
           extra: {
             kind: "rest-ended",

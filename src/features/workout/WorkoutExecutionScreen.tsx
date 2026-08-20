@@ -32,19 +32,25 @@ export interface WorkoutExecutionScreenProps {
     event: WorkoutEvent,
   ) => Promise<WorkoutTransition> | WorkoutTransition;
   onFinish?: () => void;
+  restEndedAlertActive?: boolean;
+  onDismissRestEndedAlert?: () => void;
 }
 
 export function WorkoutExecutionScreen({
   session,
   onEvent,
   onFinish,
+  restEndedAlertActive,
+  onDismissRestEndedAlert,
 }: WorkoutExecutionScreenProps) {
   const rootRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingRef = useRef(false);
   const elapsedTimersRef = useRef(new Set<string>());
+  const restFeedbackTimeoutRef = useRef<number | undefined>(undefined);
   const [isPending, setIsPending] = useState(false);
+  const [showRestEndedFeedback, setShowRestEndedFeedback] = useState(false);
   const [elapsedRetryState, setElapsedRetryState] = useState<{
     timerKey: string;
     count: number;
@@ -67,7 +73,9 @@ export function WorkoutExecutionScreen({
   const hasElapsedPersistenceFailure =
     currentRestTimerKey !== null &&
     elapsedRetryState?.timerKey === currentRestTimerKey &&
-    elapsedRetryState.failed;
+      elapsedRetryState.failed;
+  const isRestEndedFeedbackVisible =
+    restEndedAlertActive ?? showRestEndedFeedback;
 
   const dispatch = useCallback(
     async (event: WorkoutEvent, successMessage: string) => {
@@ -85,6 +93,19 @@ export function WorkoutExecutionScreen({
           setAnnouncement("训练状态已是最新。");
         } else {
           setAnnouncement(successMessage);
+          if (
+            event.type === "rest_elapsed" &&
+            transition.facts.some((fact) => fact.type === "REST_FINISHED")
+          ) {
+            if (restFeedbackTimeoutRef.current !== undefined) {
+              window.clearTimeout(restFeedbackTimeoutRef.current);
+            }
+            setShowRestEndedFeedback(true);
+            restFeedbackTimeoutRef.current = window.setTimeout(() => {
+              setShowRestEndedFeedback(false);
+              restFeedbackTimeoutRef.current = undefined;
+            }, 1_450);
+          }
         }
         return true;
       } catch {
@@ -102,23 +123,49 @@ export function WorkoutExecutionScreen({
     headingRef.current?.focus({ preventScroll: true });
   }, [viewKey]);
 
+  useEffect(
+    () => () => {
+      if (restFeedbackTimeoutRef.current !== undefined) {
+        window.clearTimeout(restFeedbackTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
   useLayoutEffect(() => {
-    if (!restTimerId) return;
+    const isCounting =
+      session.phase.kind === "active_set" || session.phase.kind === "resting";
+    if (!isCounting) return;
 
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) setNow(Date.now());
     });
-    const intervalId = window.setInterval(() => setNow(Date.now()), 250);
+    const intervalId = window.setInterval(
+      () => setNow(Date.now()),
+      session.phase.kind === "resting" ? 250 : 1_000,
+    );
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [restTimerEndsAt, restTimerId, restTimerRevision]);
+  }, [restTimerEndsAt, restTimerId, restTimerRevision, session.phase.kind]);
 
   const remainingMilliseconds =
     session.phase.kind === "resting"
       ? Math.max(0, session.phase.timer.endsAt - now)
+      : 0;
+  const actionElapsedMilliseconds =
+    session.phase.kind === "active_set"
+      ? Math.max(
+          0,
+          now -
+            (session.activeExerciseStartedAt ?? session.startedAt ?? now),
+        )
+      : 0;
+  const totalElapsedMilliseconds =
+    session.phase.kind === "active_set"
+      ? Math.max(0, now - (session.startedAt ?? now))
       : 0;
 
   useEffect(() => {
@@ -231,6 +278,8 @@ export function WorkoutExecutionScreen({
           exercise={exercise}
           headingRef={headingRef}
           isPending={isPending}
+          actionElapsedMilliseconds={actionElapsedMilliseconds}
+          totalElapsedMilliseconds={totalElapsedMilliseconds}
           position={position}
           onComplete={(actual) =>
             dispatch(
@@ -330,7 +379,16 @@ export function WorkoutExecutionScreen({
     }
 
     return <InvalidStage headingRef={headingRef} isIdle />;
-  }, [dispatch, isPending, onFinish, remainingMilliseconds, session, viewKey]);
+  }, [
+    actionElapsedMilliseconds,
+    dispatch,
+    isPending,
+    onFinish,
+    remainingMilliseconds,
+    session,
+    totalElapsedMilliseconds,
+    viewKey,
+  ]);
 
   return (
     <section
@@ -339,6 +397,23 @@ export function WorkoutExecutionScreen({
       aria-labelledby="workout-stage-title"
       aria-busy={isPending}
     >
+      {isRestEndedFeedbackVisible ? (
+        <div
+          className={`workout-rest-ended-feedback${
+            restEndedAlertActive ? " workout-rest-ended-feedback--persistent" : ""
+          }`}
+          data-testid="rest-ended-feedback"
+        >
+          <span>倒计时完成</span>
+          <strong>休息结束</strong>
+          <small>准备下一组</small>
+          {restEndedAlertActive && onDismissRestEndedAlert ? (
+            <button type="button" onClick={onDismissRestEndedAlert}>
+              关闭提醒
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <p className="workout-live-region" role="status" aria-atomic="true">
         {announcement}
       </p>

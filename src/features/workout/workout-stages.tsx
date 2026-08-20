@@ -5,6 +5,7 @@ import type {
   WorkoutPosition,
   WorkoutSession,
 } from "../../domain/workout/types";
+import { WorkoutExercisePreview } from "./WorkoutExercisePreview";
 
 type SnapshotExercise = WorkoutPlanSnapshot["exercises"][number];
 
@@ -16,6 +17,8 @@ interface ActiveSetStageProps extends StageHeadingProps {
   exercise: SnapshotExercise;
   position: WorkoutPosition;
   isPending: boolean;
+  actionElapsedMilliseconds: number;
+  totalElapsedMilliseconds: number;
   onComplete: (actual: ActualSet) => void;
 }
 
@@ -23,6 +26,8 @@ export function ActiveSetStage({
   exercise,
   position,
   isPending,
+  actionElapsedMilliseconds,
+  totalElapsedMilliseconds,
   onComplete,
   headingRef,
 }: ActiveSetStageProps) {
@@ -70,6 +75,19 @@ export function ActiveSetStage({
         </h1>
         <p className="workout-cue">{exercise.cue}</p>
       </header>
+
+      <WorkoutExercisePreview exerciseId={exercise.id} exerciseName={exercise.name} />
+
+      <dl className="workout-timing" aria-label="训练计时">
+        <div aria-label="当前动作已用时">
+          <dt>当前动作</dt>
+          <dd>{formatClock(actionElapsedMilliseconds)}</dd>
+        </div>
+        <div aria-label="训练累计时长">
+          <dt>训练累计</dt>
+          <dd>{formatClock(totalElapsedMilliseconds)}</dd>
+        </div>
+      </dl>
 
       <div className="workout-target" aria-label={`本组${formatTarget(exercise)}`}>
         <span>本组目标</span>

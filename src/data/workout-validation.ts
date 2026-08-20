@@ -129,6 +129,7 @@ const workoutSessionSchema = z.strictObject({
     }),
   ),
   startedAt: timestampSchema.nullable(),
+  activeExerciseStartedAt: timestampSchema.nullable().optional().default(null),
 });
 
 export function parseWorkoutSession(input: unknown): WorkoutSession {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StoredPlan } from "../data/types";
@@ -7,6 +7,7 @@ import type {
   WorkoutEvent,
   WorkoutSession,
 } from "../domain/workout/types";
+import type { InteractionFeedbackPlayer } from "../native/interaction-feedback";
 import { App } from "./App";
 import type { AppServices } from "./services";
 
@@ -16,6 +17,79 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("does not create a transformed containing block until a back swipe starts", () => {
+    const services = createServices();
+    const { container } = render(<App services={services} />);
+
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).not.toHaveStyle({ transform: "translateX(0%)" });
+  });
+
+  it("previews, cancels, and then commits an Android predictive back gesture", async () => {
+    const services = createServices();
+    vi.mocked(services.plans.getActive).mockResolvedValue(storedPlanFixture());
+    const user = userEvent.setup();
+    const { container } = render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "调整训练计划" }),
+    );
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "progress", progress: 0.5 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).toHaveStyle({ transform: "translateX(50%)" });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "cancelled", progress: 0 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".app-back-gesture__current"),
+    ).not.toHaveStyle({ transform: "translateX(50%)" });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "invoked", progress: 1 },
+        }),
+      );
+    });
+    expect(screen.getByRole("heading", { name: "全身训练 A" })).toBeInTheDocument();
+  });
+
+  it("plays tap feedback for actionable controls", async () => {
+    const services = createServices();
+    const interactionFeedback: InteractionFeedbackPlayer = {
+      playTap: vi.fn(async () => ({
+        sound: "played" as const,
+        haptics: "played" as const,
+      })),
+    };
+    const user = userEvent.setup();
+    render(
+      <App
+        services={services}
+        interactionFeedback={interactionFeedback}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+
+    expect(interactionFeedback.playTap).toHaveBeenCalledOnce();
+  });
+
   it("does not subscribe screen reveals to keyboard-driven viewport height changes", async () => {
     const mediaQueries: string[] = [];
     vi.stubGlobal(
@@ -45,6 +119,85 @@ describe("App", () => {
 
     expect(daysPerWeek).toHaveFocus();
     expect(mediaQueries).not.toContain("(max-height: 700px)");
+  });
+
+  it("uses Android back to dismiss text input before leaving the plan builder", async () => {
+    const services = createServices();
+    const user = userEvent.setup();
+    render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+    const daysPerWeek = screen.getByLabelText("每周训练天数");
+    await user.click(daysPerWeek);
+    const backHandler = await getBackHandler(services);
+
+    act(backHandler);
+
+    expect(daysPerWeek).not.toHaveFocus();
+    expect(screen.getByRole("heading", { name: "离线规则生成计划" })).toBeInTheDocument();
+  });
+
+  it("uses Android back to close an exercise preview and then unwind the exercise steps", async () => {
+    const services = createServices();
+    const user = userEvent.setup();
+    render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+    await user.click(screen.getByRole("tab", { name: "手动创建" }));
+    await user.click(screen.getByRole("button", { name: "徒手" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "查看标准俯卧撑" }));
+    const backHandler = await getBackHandler(services);
+
+    act(backHandler);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    act(backHandler);
+    expect(screen.getByRole("heading", { name: "选择目标肌群" })).toBeInTheDocument();
+
+    act(backHandler);
+    expect(screen.getByRole("heading", { name: "选择设备" })).toBeInTheDocument();
+  });
+
+  it("uses Android predictive back progress to preview the previous exercise step", async () => {
+    const services = createServices();
+    const user = userEvent.setup();
+    const { container } = render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "创建我的计划" }),
+    );
+    await user.click(screen.getByRole("tab", { name: "手动创建" }));
+    await user.click(screen.getByRole("button", { name: "徒手" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    await user.click(screen.getByRole("button", { name: "选择胸部" }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "progress", progress: 0.5 },
+        }),
+      );
+    });
+    expect(
+      container.querySelector(".exercise-browser__back-preview h3"),
+    ).toHaveTextContent("选择目标肌群");
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("setflowPredictiveBack", {
+          detail: { type: "invoked", progress: 1 },
+        }),
+      );
+    });
+    expect(screen.getByRole("heading", { name: "选择目标肌群" })).toBeInTheDocument();
   });
 
   it("presents the local-first primary action when no plan exists", async () => {
@@ -225,7 +378,7 @@ describe("App", () => {
     await user.click(await screen.findByRole("button", { name: "完成本组" }));
 
     await waitFor(() =>
-      expect(services.reminders.notifyRestEnded).toHaveBeenCalledOnce(),
+      expect(services.reminders.startRestEndedAlert).toHaveBeenCalledOnce(),
     );
     expect(vi.mocked(services.reminders.flush).mock.calls.length).toBeGreaterThan(
       initialFlushCount,
@@ -245,6 +398,35 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "徒手深蹲" }),
     ).toBeInTheDocument();
     expect(screen.getByText("第 1 / 2 组")).toBeInTheDocument();
+  });
+
+  it("confirms ending a workout and lets the user save its partial record", async () => {
+    const services = createServices();
+    vi.mocked(services.plans.getActive).mockResolvedValue(storedPlanFixture());
+    const user = userEvent.setup();
+    render(<App services={services} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "开始今天训练" }),
+    );
+    const backHandler = await getBackHandler(services);
+    act(backHandler);
+
+    expect(
+      screen.getByRole("dialog", { name: "结束本次训练？" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "结束训练" }));
+    expect(
+      screen.getByRole("dialog", { name: "保存本次训练数据？" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "保存训练记录" }));
+
+    await waitFor(() =>
+      expect(services.workouts.end).toHaveBeenCalledWith("plan-id", {
+        save: true,
+      }),
+    );
+    expect(screen.getByRole("heading", { name: "全身训练 A" })).toBeInTheDocument();
   });
 
   it("initializes granted reminders while resuming an active workout", async () => {
@@ -425,6 +607,9 @@ function createServices(): AppServices {
         currentWorkout = transition.state;
         return transition;
       }),
+      end: vi.fn(async () => {
+        currentWorkout = null;
+      }),
     },
     reminders: {
       checkPermission: vi.fn(async () => "unsupported" as const),
@@ -432,10 +617,15 @@ function createServices(): AppServices {
       checkExactAlarmSetting: vi.fn(async () => "unsupported" as const),
       openExactAlarmSetting: vi.fn(async () => "unsupported" as const),
       flush: vi.fn(async () => emptyReminderSyncResult()),
-      notifyRestEnded: vi.fn(async () => undefined),
+      startRestEndedAlert: vi.fn(),
+      stopRestEndedAlert: vi.fn(),
     },
     lifecycle: {
       onForeground: vi.fn(async () => () => undefined),
+    },
+    navigation: {
+      onBackButton: vi.fn(async () => () => undefined),
+      exitApp: vi.fn(async () => undefined),
     },
     now: () => 1_000,
     createId: () => ids.shift() ?? "fallback-id",
@@ -450,6 +640,15 @@ function emptyReminderSyncResult() {
     compensatedNotificationIds: [],
     failures: [],
   };
+}
+
+async function getBackHandler(services: AppServices): Promise<() => void> {
+  await waitFor(() =>
+    expect(services.navigation.onBackButton).toHaveBeenCalledOnce(),
+  );
+  const handler = vi.mocked(services.navigation.onBackButton).mock.calls[0]?.[0];
+  if (!handler) throw new Error("Back handler was not registered");
+  return handler;
 }
 
 function storedPlanFixture(restSeconds = 60): StoredPlan {

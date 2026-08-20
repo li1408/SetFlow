@@ -22,6 +22,16 @@ export type MovementPattern =
   | "lunge"
   | "core";
 
+export type MuscleGroupId =
+  | "full_body"
+  | "chest"
+  | "back"
+  | "legs"
+  | "glutes"
+  | "core"
+  | "shoulders"
+  | "arms";
+
 export type ExerciseMeasure = {
   kind: "reps" | "durationSeconds";
   basis: "total" | "per_side";

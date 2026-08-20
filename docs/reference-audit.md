@@ -34,4 +34,4 @@ Workout.cool 是 Next.js + Prisma/PostgreSQL + Better Auth 的完整 Web 平台�
 - [本地历史](https://github.com/Snouzy/workout-cool/blob/e3dcd23b4ebdfb6254010b9a7c350cfef9e236c8/src/shared/lib/workout-session/workout-session.local.ts#L3-L16)：只保留最近 10 次，不适合长期个人记录。
 - [Issue #79](https://github.com/Snouzy/workout-cool/issues/79)：公开提出独立执行界面和内置休息钟，当前仍未完成。
 
-本项目只借鉴公开的产品流程，不复制原仓库代码，因此当前不需要引入其 MIT 版权文本。若后续确实复用任何实质代码，再逐文件记录来源并补充许可证声明。
+当前已复用 Workout.cool 的肌肉选择 SVG 组件，并在 SetFlow 中改造成独立的原版细分肌肉图。MIT 版权与许可证文本记录在根目录 `THIRD_PARTY_NOTICES.md`。

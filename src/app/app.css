@@ -45,6 +45,26 @@ body {
   color: var(--color-text);
 }
 
+input,
+select,
+textarea {
+  color-scheme: dark;
+  background: var(--color-surface);
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+}
+
+select option,
+select optgroup {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+select option:checked {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
 button,
 a {
   font: inherit;
@@ -78,6 +98,12 @@ select:focus-visible {
   transform: translateY(0);
 }
 
+@media (hover: none), (pointer: coarse) {
+  .skip-link {
+    display: none;
+  }
+}
+
 .app {
   display: flex;
   width: min(100%, 31rem);
@@ -89,6 +115,111 @@ select:focus-visible {
     max(var(--space-4), env(safe-area-inset-bottom))
     max(var(--space-5), env(safe-area-inset-left));
   flex-direction: column;
+}
+
+.app-back-gesture {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: pan-y;
+}
+
+.app-back-gesture__current {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100svh;
+  flex: 1;
+  flex-direction: column;
+  background: var(--color-canvas);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-back-gesture__current--dragging {
+  will-change: transform;
+}
+
+.app-back-gesture__preview {
+  position: absolute;
+  z-index: 0;
+  display: flex;
+  width: 100%;
+  min-height: 100%;
+  padding: inherit;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.app-dialog-backdrop {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  padding: var(--space-4);
+  place-items: end center;
+  background: color-mix(in srgb, #000 70%, transparent);
+  inset: 0;
+}
+
+.app-dialog {
+  display: grid;
+  width: min(100%, 30rem);
+  padding: var(--space-5);
+  gap: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 26%, var(--color-border));
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-md) var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: 0 -1rem 3rem color-mix(in srgb, #000 36%, transparent);
+}
+
+.app-dialog__eyebrow,
+.app-dialog h2,
+.app-dialog p {
+  margin: 0;
+}
+
+.app-dialog__eyebrow {
+  color: var(--color-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.app-dialog h2 {
+  font-size: 1.45rem;
+  letter-spacing: -0.04em;
+}
+
+.app-dialog p:not(.app-dialog__eyebrow) {
+  color: var(--color-muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.app-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.app-dialog__actions button {
+  min-height: 3.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.app-dialog__actions .app-dialog__primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.app-dialog__actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
 }
 
 .topbar {
